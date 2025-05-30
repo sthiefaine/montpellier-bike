@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
@@ -16,6 +17,7 @@ function toISO(date: Date) {
 
 async function fetchAndStoreForCounter(counterId: string, serialNumber: string, from: Date, to: Date) {
   const url = `https://portail-api-data.montpellier3m.fr/ecocounter_timeseries/urn%3Angsi-ld%3AEcoCounter%3A${serialNumber}/attrs/intensity?fromDate=${encodeURIComponent(toISO(from))}&toDate=${encodeURIComponent(toISO(to))}`;
+  console.log('url', url)
   const res = await fetch(url, { headers: { accept: 'application/json' } });
   if (!res.ok) throw new Error(`Erreur API pour ${serialNumber}`);
   const data = await res.json();
@@ -43,8 +45,9 @@ export async function GET() {
       let month = 0;
       let done = false;
       while (!done && month < 12) {
-        const from = startOfMonth(subMonths(new Date(), month));
-        const to = endOfMonth(subMonths(new Date(), month));
+        const now = subMonths(new Date(), 1);
+        const from = startOfMonth(subMonths(now, month));
+        const to = endOfMonth(subMonths(now, month));
         const count = await prisma.counterTimeseries.count({
           where: {
             counterId: counter.id,

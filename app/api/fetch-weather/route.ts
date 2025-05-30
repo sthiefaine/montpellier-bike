@@ -1,3 +1,4 @@
+export const maxDuration = 300;
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { defaultCenters } from "@/app/components/MapLibre";
@@ -53,22 +54,32 @@ async function fetchWeather(lat: number, lng: number, from: Date, to: Date) {
     daily: DAILY.join(","),
   });
   const url = `https://archive-api.open-meteo.com/v1/archive?${params.toString()}`;
+  console.log("[fetchWeather] URL:", url);
   const res = await fetch(url);
-  if (!res.ok) throw new Error("Erreur API météo");
-  return await res.json();
+  if (!res.ok) {
+    console.error("[fetchWeather] Erreur API météo", res.status, await res.text());
+    throw new Error("Erreur API météo");
+  }
+  const json = await res.json();
+  console.log("[fetchWeather] Réponse API:", JSON.stringify(json).slice(0, 500));
+  return json;
 }
 
 export async function GET() {
   try {
+    console.log("[fetch-weather] DÉBUT JOB");
     let totalInserted = 0;
-    const now = new Date();
-    for (const [zone, center] of Object.entries(defaultCenters)) {
+    const now = subMonths(new Date(), 1);
+    console.log("[fetch-weather] defaultCenters:", Object.keys(defaultCenters));
+    Object.entries(defaultCenters).forEach(async ([zone, center]) => {
+      console.log(`[fetch-weather] zone: ${zone}, lat: ${center.lat}, lng: ${center.lng}`);
       let month = 0;
       let done = false;
+      console.log(`[fetch-weather] Début boucle mois pour la zone: ${zone}`);
       while (!done && month < 12) {
         const from = startOfMonth(subMonths(now, month));
         const to = endOfMonth(subMonths(now, month));
-        // Vérifier si on a déjà les données hourly pour ce mois
+        console.log(`[${zone}] Mois:`, from.toISOString(), "->", to.toISOString());
         const count = await prisma.weatherTimeseries.count({
           where: {
             zone,
@@ -76,17 +87,16 @@ export async function GET() {
             date: { gte: from, lte: to },
           },
         });
+        console.log(`[${zone}] Données déjà présentes:`, count);
         if (count >= 24 * 28) {
-          // on considère le mois fait
+          console.log(`[${zone}] Mois déjà rempli, on passe au précédent.`);
           month++;
           continue;
         }
-        // Récupérer et stocker les données météo
         const data = await fetchWeather(center.lat, center.lng, from, to);
         const source = "open-meteo";
         const timezone = data.timezone || null;
         const utcOffsetSeconds = data.utc_offset_seconds || null;
-        // Stockage hourly
         if (data.hourly && data.hourly.time) {
           for (let i = 0; i < data.hourly.time.length; i++) {
             const date = new Date(data.hourly.time[i]);
@@ -142,8 +152,9 @@ export async function GET() {
             });
             totalInserted++;
           }
+        } else {
+          console.log(`[${zone}] Pas de données horaires reçues pour ce mois.`);
         }
-        // Stockage daily
         if (data.daily && data.daily.time) {
           for (let i = 0; i < data.daily.time.length; i++) {
             const date = new Date(data.daily.time[i]);
@@ -185,12 +196,16 @@ export async function GET() {
             });
             totalInserted++;
           }
+        } else {
+          console.log(`[${zone}] Pas de données daily reçues pour ce mois.`);
         }
         done = true;
       }
-    }
+    });
+    console.log("[fetch-weather] totalInserted:", totalInserted);
     return NextResponse.json({ ok: true, totalInserted });
   } catch (e: any) {
+    console.error("[fetch-weather] Erreur:", e);
     return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
   }
 }
