@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model BikeCounter {
+  id          String   @id @default(cuid())
+  name        String
+  serialNumber String  @unique @map("numero_serie")
+  serialNumber1 String? @map("numero_serie_1")
+  latitude    Float
+  longitude   Float
+  osmLineId   Int      @map("osm_line_id")
+  coordinates Json     @map("coordinates")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  timeseries  CounterTimeseries[]
+
+  @@map("bike_counters")
+}
+
+model CounterTimeseries {
+  id           String   @id @default(uuid())
+  counterId    String
+  serialNumber String
+  date         DateTime
+  value        Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bikeCounter  BikeCounter @relation(fields: [counterId], references: [id])
+
+  @@unique([counterId, date])
+}
+
+model WeatherTimeseries {
+  id           String   @id @default(uuid())
+  zone         String
+  lat          Float
+  lng          Float
+  date         DateTime
+  type         String   // 'hourly' ou 'daily'
+  source       String   // ex: 'open-meteo'
+  timezone     String?
+  utcOffsetSeconds Int?
+  temperature2m        Float?
+  rain                Float?
+  weatherCode         Int?
+  windSpeed100m       Float?
+  windDirection100m   Float?
+  windDirection10m    Float?
+  windSpeed10m        Float?
+  windGusts10m        Float?
+  isDay               Int?
+  precipitation       Float?
+  apparentTemperature Float?
+  snowfall            Float?
+  dewPoint2m          Float?
+  relativeHumidity2m  Float?
+  cloudCover          Float?
+  daylightDuration    Int?
+  sunshineDuration    Int?
+  sunrise             DateTime?
+  sunset              DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([zone, date, type])
+}
