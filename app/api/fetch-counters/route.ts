@@ -59,7 +59,11 @@ export async function GET() {
           continue;
         }
         const serialNumber = counter.serialNumber1 ?? counter.serialNumber;
-        totalInserted += await fetchAndStoreForCounter(counter.id, serialNumber, from, to);
+        try {
+          totalInserted += await fetchAndStoreForCounter(counter.id, serialNumber, from, to);
+        } catch (err) {
+          console.error(`[fetch-counters] Erreur pour le compteur ${serialNumber}:`, err);
+        }
         done = true;
       }
     }

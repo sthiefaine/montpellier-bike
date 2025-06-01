@@ -1,24 +1,19 @@
-export const maxDuration = 300;
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { defaultCenters } from "@/app/components/MapLibre";
+import { defaultCenters } from "@/lib/defaultCenters";
 
-function startOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), 1, 0, 0, 0, 0);
+function startOfWeek(date: Date) {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1); // lundi = 1
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff, 0, 0, 0, 0));
 }
-function endOfMonth(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999);
+function endOfWeek(date: Date) {
+  const start = startOfWeek(date);
+  return new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000 + 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000 + 999); // dimanche 23:59:59.999
 }
-function subMonths(date: Date, n: number) {
-  return new Date(
-    date.getFullYear(),
-    date.getMonth() - n,
-    date.getDate(),
-    date.getHours(),
-    date.getMinutes(),
-    date.getSeconds(),
-    date.getMilliseconds()
-  );
+function subWeeks(date: Date, n: number) {
+  return new Date(date.getTime() - n * 7 * 24 * 60 * 60 * 1000);
 }
 function toISODate(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -69,139 +64,140 @@ export async function GET() {
   try {
     console.log("[fetch-weather] DÉBUT JOB");
     let totalInserted = 0;
-    const now = subMonths(new Date(), 1);
-    console.log("[fetch-weather] defaultCenters:", Object.keys(defaultCenters));
-    Object.entries(defaultCenters).forEach(async ([zone, center]) => {
+    for (const [zone, center] of Object.entries(defaultCenters)) {
       console.log(`[fetch-weather] zone: ${zone}, lat: ${center.lat}, lng: ${center.lng}`);
-      let month = 0;
-      let done = false;
-      console.log(`[fetch-weather] Début boucle mois pour la zone: ${zone}`);
-      while (!done && month < 12) {
-        const from = startOfMonth(subMonths(now, month));
-        const to = endOfMonth(subMonths(now, month));
-        console.log(`[${zone}] Mois:`, from.toISOString(), "->", to.toISOString());
-        const count = await prisma.weatherTimeseries.count({
-          where: {
-            zone,
-            type: "hourly",
-            date: { gte: from, lte: to },
-          },
-        });
-        console.log(`[${zone}] Données déjà présentes:`, count);
-        if (count >= 24 * 28) {
-          console.log(`[${zone}] Mois déjà rempli, on passe au précédent.`);
-          month++;
-          continue;
-        }
-        const data = await fetchWeather(center.lat, center.lng, from, to);
-        const source = "open-meteo";
-        const timezone = data.timezone || null;
-        const utcOffsetSeconds = data.utc_offset_seconds || null;
-        if (data.hourly && data.hourly.time) {
-          for (let i = 0; i < data.hourly.time.length; i++) {
-            const date = new Date(data.hourly.time[i]);
-            await prisma.weatherTimeseries.upsert({
-              where: { zone_date_type: { zone, date, type: "hourly" } },
-              update: {
-                lat: center.lat,
-                lng: center.lng,
-                source,
-                timezone,
-                utcOffsetSeconds,
-                temperature2m: data.hourly.temperature_2m?.[i],
-                rain: data.hourly.rain?.[i],
-                weatherCode: data.hourly.weather_code?.[i],
-                windSpeed100m: data.hourly.wind_speed_100m?.[i],
-                windDirection100m: data.hourly.wind_direction_100m?.[i],
-                windDirection10m: data.hourly.wind_direction_10m?.[i],
-                windSpeed10m: data.hourly.wind_speed_10m?.[i],
-                windGusts10m: data.hourly.wind_gusts_10m?.[i],
-                isDay: data.hourly.is_day?.[i],
-                precipitation: data.hourly.precipitation?.[i],
-                apparentTemperature: data.hourly.apparent_temperature?.[i],
-                snowfall: data.hourly.snowfall?.[i],
-                dewPoint2m: data.hourly.dew_point_2m?.[i],
-                relativeHumidity2m: data.hourly.relative_humidity_2m?.[i],
-                cloudCover: data.hourly.cloud_cover?.[i],
-              },
-              create: {
-                zone,
-                lat: center.lat,
-                lng: center.lng,
-                source,
-                timezone,
-                utcOffsetSeconds,
-                date,
-                type: "hourly",
-                temperature2m: data.hourly.temperature_2m?.[i],
-                rain: data.hourly.rain?.[i],
-                weatherCode: data.hourly.weather_code?.[i],
-                windSpeed100m: data.hourly.wind_speed_100m?.[i],
-                windDirection100m: data.hourly.wind_direction_100m?.[i],
-                windDirection10m: data.hourly.wind_direction_10m?.[i],
-                windSpeed10m: data.hourly.wind_speed_10m?.[i],
-                windGusts10m: data.hourly.wind_gusts_10m?.[i],
-                isDay: data.hourly.is_day?.[i],
-                precipitation: data.hourly.precipitation?.[i],
-                apparentTemperature: data.hourly.apparent_temperature?.[i],
-                snowfall: data.hourly.snowfall?.[i],
-                dewPoint2m: data.hourly.dew_point_2m?.[i],
-                relativeHumidity2m: data.hourly.relative_humidity_2m?.[i],
-                cloudCover: data.hourly.cloud_cover?.[i],
-              },
-            });
-            totalInserted++;
-          }
-        } else {
-          console.log(`[${zone}] Pas de données horaires reçues pour ce mois.`);
-        }
-        if (data.daily && data.daily.time) {
-          for (let i = 0; i < data.daily.time.length; i++) {
-            const date = new Date(data.daily.time[i]);
-            await prisma.weatherTimeseries.upsert({
-              where: { zone_date_type: { zone, date, type: "daily" } },
-              update: {
-                lat: center.lat,
-                lng: center.lng,
-                source,
-                timezone,
-                utcOffsetSeconds,
-                daylightDuration: data.daily.daylight_duration?.[i],
-                sunshineDuration: data.daily.sunshine_duration?.[i],
-                sunrise: data.daily.sunrise?.[i]
-                  ? new Date(data.daily.sunrise[i])
-                  : undefined,
-                sunset: data.daily.sunset?.[i]
-                  ? new Date(data.daily.sunset[i])
-                  : undefined,
-              },
-              create: {
-                zone,
-                lat: center.lat,
-                lng: center.lng,
-                source,
-                timezone,
-                utcOffsetSeconds,
-                date,
-                type: "daily",
-                daylightDuration: data.daily.daylight_duration?.[i],
-                sunshineDuration: data.daily.sunshine_duration?.[i],
-                sunrise: data.daily.sunrise?.[i]
-                  ? new Date(data.daily.sunrise[i])
-                  : undefined,
-                sunset: data.daily.sunset?.[i]
-                  ? new Date(data.daily.sunset[i])
-                  : undefined,
-              },
-            });
-            totalInserted++;
-          }
-        } else {
-          console.log(`[${zone}] Pas de données daily reçues pour ce mois.`);
-        }
-        done = true;
+      // Cherche la date la plus récente déjà en base pour cette zone
+      const lastEntry = await prisma.weatherTimeseries.findFirst({
+        where: { zone, type: "hourly" },
+        orderBy: { date: "desc" },
+      });
+      let end = lastEntry ? startOfWeek(lastEntry.date) : endOfWeek(new Date());
+      let start = subWeeks(end, 1);
+      // On ne va pas dans le futur
+      const now = new Date();
+      if (end > now) end = endOfWeek(now);
+      if (start > now) start = startOfWeek(now);
+      console.log(`[${zone}] Semaine à traiter:`, start.toISOString(), "->", end.toISOString());
+      // Vérifie si la semaine est déjà couverte
+      const count = await prisma.weatherTimeseries.count({
+        where: {
+          zone,
+          type: "hourly",
+          date: { gte: start, lte: end },
+        },
+      });
+      console.log(`[${zone}] Données déjà présentes pour cette semaine:`, count);
+      if (count >= 24 * 7) {
+        console.log(`[${zone}] Semaine déjà remplie, on passe à la suivante.`);
+        continue;
       }
-    });
+      const data = await fetchWeather(center.lat, center.lng, start, end);
+      const source = "open-meteo";
+      const timezone = data.timezone || null;
+      const utcOffsetSeconds = data.utc_offset_seconds || null;
+      if (data.hourly && data.hourly.time) {
+        for (let i = 0; i < data.hourly.time.length; i++) {
+          const date = new Date(data.hourly.time[i]);
+          await prisma.weatherTimeseries.upsert({
+            where: { zone_date_type: { zone, date, type: "hourly" } },
+            update: {
+              lat: center.lat,
+              lng: center.lng,
+              source,
+              timezone,
+              utcOffsetSeconds,
+              temperature2m: data.hourly.temperature_2m?.[i],
+              rain: data.hourly.rain?.[i],
+              weatherCode: data.hourly.weather_code?.[i],
+              windSpeed100m: data.hourly.wind_speed_100m?.[i],
+              windDirection100m: data.hourly.wind_direction_100m?.[i],
+              windDirection10m: data.hourly.wind_direction_10m?.[i],
+              windSpeed10m: data.hourly.wind_speed_10m?.[i],
+              windGusts10m: data.hourly.wind_gusts_10m?.[i],
+              isDay: data.hourly.is_day?.[i],
+              precipitation: data.hourly.precipitation?.[i],
+              apparentTemperature: data.hourly.apparent_temperature?.[i],
+              snowfall: data.hourly.snowfall?.[i],
+              dewPoint2m: data.hourly.dew_point_2m?.[i],
+              relativeHumidity2m: data.hourly.relative_humidity_2m?.[i],
+              cloudCover: data.hourly.cloud_cover?.[i],
+            },
+            create: {
+              zone,
+              lat: center.lat,
+              lng: center.lng,
+              source,
+              timezone,
+              utcOffsetSeconds,
+              date,
+              type: "hourly",
+              temperature2m: data.hourly.temperature_2m?.[i],
+              rain: data.hourly.rain?.[i],
+              weatherCode: data.hourly.weather_code?.[i],
+              windSpeed100m: data.hourly.wind_speed_100m?.[i],
+              windDirection100m: data.hourly.wind_direction_100m?.[i],
+              windDirection10m: data.hourly.wind_direction_10m?.[i],
+              windSpeed10m: data.hourly.wind_speed_10m?.[i],
+              windGusts10m: data.hourly.wind_gusts_10m?.[i],
+              isDay: data.hourly.is_day?.[i],
+              precipitation: data.hourly.precipitation?.[i],
+              apparentTemperature: data.hourly.apparent_temperature?.[i],
+              snowfall: data.hourly.snowfall?.[i],
+              dewPoint2m: data.hourly.dew_point_2m?.[i],
+              relativeHumidity2m: data.hourly.relative_humidity_2m?.[i],
+              cloudCover: data.hourly.cloud_cover?.[i],
+            },
+          });
+          totalInserted++;
+        }
+      } else {
+        console.log(`[${zone}] Pas de données horaires reçues pour cette semaine.`);
+      }
+      if (data.daily && data.daily.time) {
+        for (let i = 0; i < data.daily.time.length; i++) {
+          const date = new Date(data.daily.time[i]);
+          await prisma.weatherTimeseries.upsert({
+            where: { zone_date_type: { zone, date, type: "daily" } },
+            update: {
+              lat: center.lat,
+              lng: center.lng,
+              source,
+              timezone,
+              utcOffsetSeconds,
+              daylightDuration: data.daily.daylight_duration?.[i],
+              sunshineDuration: data.daily.sunshine_duration?.[i],
+              sunrise: data.daily.sunrise?.[i]
+                ? new Date(data.daily.sunrise[i])
+                : undefined,
+              sunset: data.daily.sunset?.[i]
+                ? new Date(data.daily.sunset[i])
+                : undefined,
+            },
+            create: {
+              zone,
+              lat: center.lat,
+              lng: center.lng,
+              source,
+              timezone,
+              utcOffsetSeconds,
+              date,
+              type: "daily",
+              daylightDuration: data.daily.daylight_duration?.[i],
+              sunshineDuration: data.daily.sunshine_duration?.[i],
+              sunrise: data.daily.sunrise?.[i]
+                ? new Date(data.daily.sunrise[i])
+                : undefined,
+              sunset: data.daily.sunset?.[i]
+                ? new Date(data.daily.sunset[i])
+                : undefined,
+            },
+          });
+          totalInserted++;
+        }
+      } else {
+        console.log(`[${zone}] Pas de données daily reçues pour cette semaine.`);
+      }
+    }
     console.log("[fetch-weather] totalInserted:", totalInserted);
     return NextResponse.json({ ok: true, totalInserted });
   } catch (e: any) {
