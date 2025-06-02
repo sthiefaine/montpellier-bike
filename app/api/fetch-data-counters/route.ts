@@ -76,7 +76,10 @@ export async function GET(req: NextRequest) {
 
     let totalInserted = 0;
     for (const counter of counters) {
-      const serialNumber = counter.serialNumber1 ?? counter.serialNumber;
+      const serialNumber =
+        counter.serialNumber1 && /^[a-zA-Z]/.test(counter.serialNumber1)
+          ? counter.serialNumber1
+          : counter.serialNumber;
       try {
         totalInserted += await fetchAndStoreForCounter(
           counter.id,

@@ -6,6 +6,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { MapLibreSkeleton } from "./MapLibreSkeleton";
 import type { BikeCounter } from "@prisma/client";
 import { defaultCenters } from "@/lib/defaultCenters";
+import { prisma } from "@/lib/prisma";
+import { getCountersStatus } from "@/app/actions/counters";
 
 // Nouveau type pour les cercles météo
 export type WeatherCircle = { lat: number; lon: number; radius: number };
@@ -23,6 +25,7 @@ interface MapLibreProps {
   counters?: BikeCounter[];
   onMapReady?: () => void;
   weatherCircles?: WeatherCircle[];
+  onCounterSelect?: (counter: BikeCounter | null) => void;
 }
 
 const bounds: maplibregl.LngLatBoundsLike = [
@@ -30,7 +33,6 @@ const bounds: maplibregl.LngLatBoundsLike = [
   [4.088, 43.776], // Northeast coordinates
 ];
 
-// Fonction utilitaire pour générer un polygone cercle GeoJSON autour d'un point (lon, lat)
 function createGeoJSONCircle(
   center: { lng: number; lat: number; radius: number },
   radiusInMeters: number,
@@ -103,11 +105,22 @@ export default function MapLibre({
   counters,
   onMapReady,
   weatherCircles,
+  onCounterSelect,
 }: MapLibreProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const [selectedCounter, setSelectedCounter] = useState<BikeCounter | null>(null);
+  const [activeCounters, setActiveCounters] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    async function fetchActiveCounters() {
+      const activeIds = await getCountersStatus();
+      setActiveCounters(activeIds);
+    }
+    fetchActiveCounters();
+  }, []);
 
   useEffect(() => {
     if (!mapContainer.current) return;
@@ -158,57 +171,11 @@ export default function MapLibre({
             },
           });
         });
-      } else {
-        // Sinon, comportement par défaut (cercles calculés)
-        Object.entries(defaultCenters).forEach(([zone, center]) => {
-          const circleId = `circle-fill-${zone}`;
-          if (!map.current) return;
-          if (map.current.getLayer(circleId)) map.current.removeLayer(circleId);
-          if (map.current.getLayer(`${circleId}-border`)) map.current.removeLayer(`${circleId}-border`);
-          if (map.current.getSource(circleId)) map.current.removeSource(circleId);
-          const circlePolygon = createGeoJSONCircle(center, center.radius);
-          const circleSource = {
-            type: "geojson" as const,
-            data: circlePolygon,
-          };
-          map.current.addSource(circleId, circleSource);
-          map.current.addLayer({
-            id: circleId,
-            type: "fill",
-            source: circleId,
-            paint: {
-              "fill-color": "#FF0000",
-              "fill-opacity": 0.2,
-            },
-          });
-          map.current.addLayer({
-            id: `${circleId}-border`,
-            type: "line",
-            source: circleId,
-            paint: {
-              "line-color": "#FF0000",
-              "line-width": 2,
-            },
-          });
-          const popup = new maplibregl.Popup({
-            closeButton: false,
-            closeOnClick: false,
-          }).setHTML(`
-            <h3 class="font-bold text-black">Zone ${zone}</h3>
-            <p class="text-black">Lat: ${center.lat.toFixed(4)}</p>
-            <p class="text-black">Lng: ${center.lng.toFixed(4)}</p>
-          `);
-          const marker = new maplibregl.Marker({ color: "transparent" })
-            .setLngLat([center.lng, center.lat])
-            .setPopup(popup)
-            .addTo(map.current!);
-          markersRef.current.push(marker);
-        });
       }
       // Association points <-> cercles météo
       let circlesToUse = weatherCircles && weatherCircles.length > 0
         ? weatherCircles
-        : Object.values(defaultCenters);
+        : [];
       if (counters && counters.length > 0) {
         const points = counters.map(c => ({ lat: c.latitude, lng: c.longitude, id: c.id, name: c.name }));
         const result = assignPointsToCircles(points, circlesToUse);
@@ -251,11 +218,17 @@ export default function MapLibre({
     markersRef.current = [];
 
     counters.forEach((counter) => {
+      const isActive = activeCounters.has(counter.id);
+      
       const el = document.createElement("div");
       el.className = "marker";
       el.style.width = "20px";
       el.style.height = "20px";
-      el.style.backgroundColor = "#22C55E";
+      el.style.backgroundColor = selectedCounter?.id === counter.id 
+        ? "#3B82F6" 
+        : isActive 
+          ? "#22C55E" 
+          : "#EF4444";
       el.style.borderRadius = "50%";
       el.style.border = "2px solid white";
       el.style.boxShadow = "0 0 4px rgba(0,0,0,0.3)";
@@ -273,13 +246,19 @@ export default function MapLibre({
           }).setHTML(`
             <h3 class="font-bold text-black">${counter.name}</h3>
             <p class="text-black">Numéro de série: ${counter.serialNumber}</p>
+            <p class="text-black">Statut: ${isActive ? 'Actif' : 'Inactif'}</p>
           `)
         )
         .addTo(map.current!);
 
+      marker.getElement().addEventListener('click', () => {
+        setSelectedCounter(counter);
+        onCounterSelect?.(counter);
+      });
+
       markersRef.current.push(marker);
     });
-  }, [counters]);
+  }, [counters, onCounterSelect, selectedCounter, activeCounters]);
 
   return (
     <div className="relative w-full h-full">

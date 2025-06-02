@@ -2,11 +2,19 @@
   "crons": [
     {
       "path": "/api/fetch-data-weather",
+      "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/fetch-data-weather",
       "schedule": "0 12 * * *"
     },
     {
       "path": "/api/fetch-data-weather",
       "schedule": "0 23 * * *"
+    },
+    {
+      "path": "/api/fetch-data-counters",
+      "schedule": "0 6 * * *"
     },
     {
       "path": "/api/fetch-data-counters",
