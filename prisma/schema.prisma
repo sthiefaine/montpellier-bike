@@ -53,6 +53,7 @@ model WeatherTimeseries {
   source       String   // ex: 'open-meteo'
   timezone     String?
   utcOffsetSeconds Int?
+  // Variables horaires
   temperature2m        Float?
   rain                Float?
   weatherCode         Int?
@@ -68,10 +69,23 @@ model WeatherTimeseries {
   dewPoint2m          Float?
   relativeHumidity2m  Float?
   cloudCover          Float?
+  // Variables quotidiennes
   daylightDuration    Int?
   sunshineDuration    Int?
   sunrise             DateTime?
   sunset              DateTime?
+  temperature2mMax    Float?
+  temperature2mMin    Float?
+  precipitationSum    Float?
+  rainSum             Float?
+  snowfallSum         Float?
+  precipitationHours  Float?
+  windSpeed10mMax     Float?
+  windGusts10mMax     Float?
+  windDirection10mDominant Float?
+  precipitationProbabilityMax Float?
+  precipitationProbabilityMin Float?
+  precipitationProbabilityMean Float?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
