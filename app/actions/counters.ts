@@ -217,7 +217,9 @@ export async function getYearlyStats(counterId: string) {
 }
 
 export async function getHourlyStats(counterId: string) {
-  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const today = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })
+  );
   today.setHours(0, 0, 0, 0);
 
   const startOfWeek = new Date(today);
@@ -255,7 +257,9 @@ export async function getHourlyStats(counterId: string) {
         FROM "CounterTimeseries"
         WHERE "counterId" = ${counterId}
           AND date >= ${new Date(startOfWeek.getTime() + 24 * 60 * 60 * 1000)}
-          AND date < ${new Date(startOfWeek.getTime() + 2 * 24 * 60 * 60 * 1000)}
+          AND date < ${new Date(
+            startOfWeek.getTime() + 2 * 24 * 60 * 60 * 1000
+          )}
         GROUP BY hour
         ORDER BY hour ASC
       `
@@ -267,8 +271,12 @@ export async function getHourlyStats(counterId: string) {
           COALESCE(SUM(value), 0)::bigint as total
         FROM "CounterTimeseries"
         WHERE "counterId" = ${counterId}
-          AND date >= ${new Date(startOfWeek.getTime() + 2 * 24 * 60 * 60 * 1000)}
-          AND date < ${new Date(startOfWeek.getTime() + 3 * 24 * 60 * 60 * 1000)}
+          AND date >= ${new Date(
+            startOfWeek.getTime() + 2 * 24 * 60 * 60 * 1000
+          )}
+          AND date < ${new Date(
+            startOfWeek.getTime() + 3 * 24 * 60 * 60 * 1000
+          )}
         GROUP BY hour
         ORDER BY hour ASC
       `
@@ -280,8 +288,12 @@ export async function getHourlyStats(counterId: string) {
           COALESCE(SUM(value), 0)::bigint as total
         FROM "CounterTimeseries"
         WHERE "counterId" = ${counterId}
-          AND date >= ${new Date(startOfWeek.getTime() + 3 * 24 * 60 * 60 * 1000)}
-          AND date < ${new Date(startOfWeek.getTime() + 4 * 24 * 60 * 60 * 1000)}
+          AND date >= ${new Date(
+            startOfWeek.getTime() + 3 * 24 * 60 * 60 * 1000
+          )}
+          AND date < ${new Date(
+            startOfWeek.getTime() + 4 * 24 * 60 * 60 * 1000
+          )}
         GROUP BY hour
         ORDER BY hour ASC
       `
@@ -293,8 +305,12 @@ export async function getHourlyStats(counterId: string) {
           COALESCE(SUM(value), 0)::bigint as total
         FROM "CounterTimeseries"
         WHERE "counterId" = ${counterId}
-          AND date >= ${new Date(startOfWeek.getTime() + 4 * 24 * 60 * 60 * 1000)}
-          AND date < ${new Date(startOfWeek.getTime() + 5 * 24 * 60 * 60 * 1000)}
+          AND date >= ${new Date(
+            startOfWeek.getTime() + 4 * 24 * 60 * 60 * 1000
+          )}
+          AND date < ${new Date(
+            startOfWeek.getTime() + 5 * 24 * 60 * 60 * 1000
+          )}
         GROUP BY hour
         ORDER BY hour ASC
       `
@@ -306,8 +322,12 @@ export async function getHourlyStats(counterId: string) {
           COALESCE(SUM(value), 0)::bigint as total
         FROM "CounterTimeseries"
         WHERE "counterId" = ${counterId}
-          AND date >= ${new Date(startOfWeek.getTime() + 5 * 24 * 60 * 60 * 1000)}
-          AND date < ${new Date(startOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000)}
+          AND date >= ${new Date(
+            startOfWeek.getTime() + 5 * 24 * 60 * 60 * 1000
+          )}
+          AND date < ${new Date(
+            startOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000
+          )}
         GROUP BY hour
         ORDER BY hour ASC
       `
@@ -319,8 +339,12 @@ export async function getHourlyStats(counterId: string) {
           COALESCE(SUM(value), 0)::bigint as total
         FROM "CounterTimeseries"
         WHERE "counterId" = ${counterId}
-          AND date >= ${new Date(startOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000)}
-          AND date < ${new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000)}
+          AND date >= ${new Date(
+            startOfWeek.getTime() + 6 * 24 * 60 * 60 * 1000
+          )}
+          AND date < ${new Date(
+            startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000
+          )}
         GROUP BY hour
         ORDER BY hour ASC
       `
@@ -394,7 +418,11 @@ export async function getWeeklyStats(counterId: string) {
     ),
   ]);
 
-  const formatWeeklyData = (stats: { day: string; total: bigint }[], startDate: Date, endDate: Date) => {
+  const formatWeeklyData = (
+    stats: { day: string; total: bigint }[],
+    startDate: Date,
+    endDate: Date
+  ) => {
     const weeklyData = [
       { day: "lun", value: null as number | null },
       { day: "mar", value: null as number | null },
@@ -461,7 +489,9 @@ export async function getWeeklyStats(counterId: string) {
 export async function getDailyStatsForYear(counterId: string) {
   const now = new Date();
   const yearStart = new Date(now.getFullYear(), 0, 1);
-  const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const today = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })
+  );
   today.setHours(0, 0, 0, 0);
 
   const stats = await prisma.$queryRaw<{ day: string; total: bigint }[]>(

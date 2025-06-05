@@ -5,33 +5,15 @@ import type { BikeCounter } from "@prisma/client";
 import { getCounterStats } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
 import NumberFlow from "./NumberFlow";
+import { PreloadedCounterData } from "../page";
 
 interface CounterDetailsProps {
   counter: BikeCounter | null;
+  preloadedData: PreloadedCounterData | null;
 }
 
-export default function CounterDetails({ counter }: CounterDetailsProps) {
-  const [stats, setStats] = useState<{
-    yesterday: number;
-    today: number;
-    totalPassages: number;
-    firstPassageDate: Date | null;
-    lastPassageDate: Date | null;
-    lastPassageYesterday: Date | null;
-    lastPassageToday: Date | null;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!counter) return;
-
-    async function fetchStats() {
-      if (!counter) return;
-      const data = await getCounterStats(counter.id);
-      setStats(data);
-    }
-
-    fetchStats();
-  }, [counter]);
+export default function CounterDetails({ counter, preloadedData }: CounterDetailsProps) {
+  const stats = preloadedData?.counterStats;
 
   if (!counter || !stats) return <CounterSkeleton />;
 

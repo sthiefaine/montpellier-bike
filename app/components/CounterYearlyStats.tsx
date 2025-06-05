@@ -4,9 +4,11 @@ import { useEffect, useState } from "react";
 import type { BikeCounter } from "@prisma/client";
 import { getYearlyStats } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
+import { PreloadedCounterData } from "../page";
 
 interface CounterYearlyStatsProps {
   counter: BikeCounter | null;
+  preloadedData: PreloadedCounterData | null;
 }
 
 const COLORS = [
@@ -22,26 +24,18 @@ const COLORS = [
 
 export default function CounterYearlyStats({
   counter,
+  preloadedData,
 }: CounterYearlyStatsProps) {
-  const [yearlyStats, setYearlyStats] = useState<
-    { year: number; total: number }[]
-  >([]);
+  const yearlyStats = preloadedData?.yearlyStats;
 
-  useEffect(() => {
-    if (!counter) return;
 
-    async function fetchYearlyStats() {
-      if (!counter) return;
-      const data = await getYearlyStats(counter.id);
-      setYearlyStats(data);
-    }
-
-    fetchYearlyStats();
-  }, [counter]);
-
-  if (!counter || yearlyStats.length === 0) return <CounterSkeleton />;
+  if (!counter || !yearlyStats) return <CounterSkeleton />;
 
   const maxTotal = Math.max(...yearlyStats.map((s) => s.total));
+
+  const formatValue = (value: number) => {
+    return new Intl.NumberFormat("fr-FR").format(value);
+  };
 
   return (
     <div className="space-y-2">
@@ -67,7 +61,7 @@ export default function CounterYearlyStats({
                 className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black text-xs px-2 py-0.5 rounded shadow"
                 style={{ pointerEvents: "none" }}
               >
-                {stat.total.toLocaleString("fr-FR")}
+                {formatValue(stat.total)}
               </span>
             </div>
           </div>

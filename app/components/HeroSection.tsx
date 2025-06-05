@@ -3,6 +3,9 @@
 import { getGlobalStats } from "@/app/actions/counters";
 import { getDailyStats } from "@/app/actions/dailyStats";
 import NumberFlow from "@/app/components/NumberFlow";
+import StatsBar from "@/app/components/StatsBar";
+import WeatherMessage from "@/app/components/WeatherMessage";
+import Image from "next/image";
 
 const getDailyStatsData = async () => {
   const data = await getDailyStats();
@@ -20,66 +23,81 @@ export default async function HeroSection() {
     getDailyStatsData(),
   ]);
 
-  const maxPassages = Math.max(dailyStats.passages.yesterday, dailyStats.passages.dayBeforeYesterday);
-  const yesterdayPercentage = (dailyStats.passages.yesterday / maxPassages) * 100;
-  const dayBeforeYesterdayPercentage = (dailyStats.passages.dayBeforeYesterday / maxPassages) * 100;
+  const maxPassages = Math.max(
+    dailyStats.passages.yesterday,
+    dailyStats.passages.dayBeforeYesterday
+  );
+  const yesterdayPercentage =
+    (dailyStats.passages.yesterday / maxPassages) * 100;
+  const dayBeforeYesterdayPercentage =
+    (dailyStats.passages.dayBeforeYesterday / maxPassages) * 100;
 
   return (
     <div className="bg-gradient-to-b from-blue-50 to-white">
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-6">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-6">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              <NumberFlow value={stats.totalCounters} /> Eco-Compteurs à
-              Montpellier
-            </h1>
-            <p className="text-xl text-gray-600">
-              Suivez la mobilité douce dans les rues de Montpellier et les
-              alentours, déjà <NumberFlow value={stats.totalPassages} />{" "}
-              passages depuis le{" "}
-              {stats.firstPassageDate
-                ? new Date(stats.firstPassageDate).toLocaleDateString("fr-FR")
-                : "début des mesures"}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="w-24 text-sm text-gray-700 text-left">
-                Avant-hier
-              </span>
-              <div className="relative flex-1 flex items-center h-8 bg-gray-200 rounded">
-                <div
-                  className="absolute left-0 top-0 h-8 rounded bg-blue-500 transition-all duration-500"
-                  style={{ width: `${dayBeforeYesterdayPercentage}%` }}
-                ></div>
-                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black text-sm px-2 py-0.5 rounded shadow">
-                  <NumberFlow value={dailyStats.passages.dayBeforeYesterday} />
-                </span>
-              </div>
-              {dailyStats.weather.yesterday !== null && (
-                <span className="text-sm text-gray-600 w-16">
-                  {dailyStats.weather.yesterday}°C
-                </span>
-              )}
+          <div className="flex flex-col md:flex-row items-center gap-6 mb-4">
+            <div className="flex-1 text-center md:text-left">
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">
+                <NumberFlow value={stats.totalCounters} /> Eco-Compteurs à
+                Montpellier
+              </h1>
+              <p className="text-lg text-gray-600 mb-3">
+                Suivez la mobilité douce dans les rues de Montpellier et les
+                alentours, déjà <NumberFlow value={stats.totalPassages} />{" "}
+                passages depuis le{" "}
+                {stats.firstPassageDate
+                  ? new Date(stats.firstPassageDate).toLocaleDateString("fr-FR")
+                  : "début des mesures"}
+              </p>
+              <WeatherMessage
+                temperature={dailyStats.weather.today}
+                isRaining={dailyStats.weather.isRaining}
+                isCloudy={dailyStats.weather.isCloudy}
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <span className="w-24 text-sm text-gray-700 text-left">
-                Hier
-              </span>
-              <div className="relative flex-1 flex items-center h-8 bg-gray-200 rounded">
-                <div
-                  className="absolute left-0 top-0 h-8 rounded bg-green-500 transition-all duration-500"
-                  style={{ width: `${yesterdayPercentage}%` }}
-                ></div>
-                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black text-sm px-2 py-0.5 rounded shadow">
-                  <NumberFlow value={dailyStats.passages.yesterday} />
-                </span>
+            <div className="relative w-24 h-24">
+              <div className="absolute inset-0 transform transition-transform duration-200 z-10">
+                <Image
+                  src="/images/velo_f.png"
+                  alt="Illustration d'un cycliste"
+                  fill
+                  className="object-contain"
+                  priority
+                />
               </div>
-              {dailyStats.weather.today !== null && (
-                <span className="text-sm text-gray-600 w-16">
-                  {dailyStats.weather.today}°C
-                </span>
-              )}
+              <div className="w-20 h-20 absolute inset-0 transform transition-transform duration-200 -translate-x-[-60px] translate-y-2 z-0">
+                <Image
+                  src="/images/trotinette_h.png"
+                  alt="Illustration d'un utilisateur de trottinette"
+                  fill
+                  className="object-contain"
+                  priority
+                />
+              </div>
+            </div>
+          </div>
+          <div className="max-w-md mx-auto md:mx-0">
+            <span className="text-sm font-medium text-gray-700">Passages</span>
+            <div className="grid grid-cols-2 gap-3">
+              <StatsBar
+                label="Avant-hier"
+                value={dailyStats.passages.dayBeforeYesterday}
+                percentage={dayBeforeYesterdayPercentage}
+                temperature={dailyStats.weather.yesterday}
+                color="blue"
+                isRaining={false}
+                isCloudy={false}
+              />
+              <StatsBar
+                label="Hier"
+                value={dailyStats.passages.yesterday}
+                percentage={yesterdayPercentage}
+                temperature={dailyStats.weather.today}
+                color="green"
+                isRaining={dailyStats.weather.isRaining}
+                isCloudy={dailyStats.weather.isCloudy}
+              />
             </div>
           </div>
         </div>

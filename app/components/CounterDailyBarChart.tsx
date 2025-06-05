@@ -11,20 +11,19 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+import { PreloadedCounterData } from "../page";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
 
 type DailyBar = { day: string; value: number };
 
-export default function CounterDailyBarChart({ counter }: { counter: BikeCounter | null }) {
-  const [data, setData] = useState<DailyBar[]>([]);
+interface CounterDailyBarChartProps {
+  counter: BikeCounter | null;
+  preloadedData: PreloadedCounterData | null;
+}
 
-  useEffect(() => {
-    if (!counter) return;
-    getDailyStatsForYear(counter.id).then(setData);
-  }, [counter]);
-
-  if (!counter || data.length === 0) return <CounterSkeleton />;
+export default function CounterDailyBarChart({ counter, preloadedData }: CounterDailyBarChartProps) {
+  if (!counter || !preloadedData) return <CounterSkeleton />;
 
   const formatDate = (date: string) => {
     // display only the day and month of current year
@@ -35,11 +34,11 @@ export default function CounterDailyBarChart({ counter }: { counter: BikeCounter
   };
 
   const chartData = {
-    labels: data.map((d) => formatDate(d.day)),
+    labels: preloadedData.dailyBarStats.map((d) => formatDate(d.day)),
     datasets: [
       {
         label: "Passages",
-        data: data.map((d) => d.value),
+        data: preloadedData.dailyBarStats.map((d) => d.value),
         backgroundColor: "rgba(163, 230, 53, 0.7)",
         borderColor: "#a3e635",
         borderWidth: 1,
@@ -82,7 +81,11 @@ export default function CounterDailyBarChart({ counter }: { counter: BikeCounter
         Passages par jour (année en cours)
       </h4>
       <div className="h-[calc(35vh)] bg-white p-2 rounded-lg shadow-sm">
-        <Bar data={chartData} options={options} />
+        <div className="overflow-x-auto">
+          <div className="min-w-[1200px]">
+            <Bar data={chartData} options={options} />
+          </div>
+        </div>
       </div>
     </div>
   );

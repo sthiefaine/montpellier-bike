@@ -15,9 +15,11 @@ import {
 } from "recharts";
 import { getWeeklyStats } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
+import { PreloadedCounterData } from "../page";
 
 interface CounterWeeklyStatsProps {
   counter: BikeCounter | null;
+  preloadedData: PreloadedCounterData | null;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -48,36 +50,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function CounterWeeklyStats({
-  counter,
-}: CounterWeeklyStatsProps) {
-  const [weeklyStats, setWeeklyStats] = useState<{
-    currentWeek: { day: string; value: number | null }[];
-    lastWeek: { day: string; value: number | null }[];
-    currentWeekAverage: number;
-    lastWeekAverage: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!counter) return;
-
-    async function fetchWeeklyStats() {
-      if (!counter) return;
-      const data = await getWeeklyStats(counter.id);
-      setWeeklyStats(data);
-    }
-
-    fetchWeeklyStats();
-  }, [counter]);
-
-  if (!counter || !weeklyStats) return <CounterSkeleton />;
+export default function CounterWeeklyStats({ counter, preloadedData }: CounterWeeklyStatsProps) {
+  if (!counter || !preloadedData) return <CounterSkeleton />;
 
   const formatValue = (value: number) => {
     return new Intl.NumberFormat("fr-FR").format(value);
   };
 
   const globalAverage = Math.round(
-    (weeklyStats.currentWeekAverage + weeklyStats.lastWeekAverage) / 2
+    (preloadedData.weeklyStats.currentWeekAverage + preloadedData.weeklyStats.lastWeekAverage) / 2
   );
 
   return (
@@ -89,7 +70,7 @@ export default function CounterWeeklyStats({
         <div className="h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
-              data={weeklyStats.currentWeek}
+              data={preloadedData.weeklyStats.currentWeek}
               margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -138,11 +119,22 @@ export default function CounterWeeklyStats({
                 type="monotone"
                 dataKey="value"
                 name="Semaine dernière"
-                data={weeklyStats.lastWeek}
+                data={preloadedData.weeklyStats.lastWeek}
                 stroke="#22c55e"
                 strokeWidth={2}
                 dot={false}
                 connectNulls={true}
+              />
+              <ReferenceLine
+                y={globalAverage}
+                stroke="#94a3b8"
+                strokeDasharray="3 3"
+                label={{
+                  value: `Moyenne: ${formatValue(globalAverage)}`,
+                  position: "right",
+                  fill: "#94a3b8",
+                  fontSize: 12,
+                }}
               />
             </LineChart>
           </ResponsiveContainer>

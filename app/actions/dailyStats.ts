@@ -11,6 +11,8 @@ export type DailyStats = {
   weather: {
     yesterday: number | null;
     today: number | null;
+    isRaining: boolean;
+    isCloudy: boolean;
   };
 };
 
@@ -65,26 +67,29 @@ export async function getDailyStats(): Promise<DailyStats> {
     }),
   ]);
 
-  // Récupération des températures pour hier
-  const yesterdayWeather = await prisma.weatherTimeseries.findMany({
-    where: {
-      date: {
-        gte: yesterday,
-        lt: today,
-      },
-      type: "hourly",
-    },
-    select: {
-      temperature2m: true,
-    },
-  });
-
-  // Récupération des températures pour aujourd'hui
+  // Récupération des données météo pour aujourd'hui
   const todayWeather = await prisma.weatherTimeseries.findMany({
     where: {
       date: {
         gte: today,
         lt: tomorrow,
+      },
+      type: "hourly",
+    },
+    select: {
+      temperature2m: true,
+      rain: true,
+      weatherCode: true,
+      cloudCover: true,
+    },
+  });
+
+  // Récupération des données météo pour hier
+  const yesterdayWeather = await prisma.weatherTimeseries.findMany({
+    where: {
+      date: {
+        gte: yesterday,
+        lt: today,
       },
       type: "hourly",
     },
@@ -104,6 +109,18 @@ export async function getDailyStats(): Promise<DailyStats> {
     .filter((temp): temp is number => temp !== null)
     .reduce((max, temp) => Math.max(max, temp), -100);
 
+  // Vérification de la pluie pour aujourd'hui
+  const isRaining = todayWeather.some(w => 
+    w.rain && w.rain > 0 || 
+    (w.weatherCode && [61, 63, 65, 80, 81, 82].includes(w.weatherCode))
+  );
+
+  // Vérification du ciel couvert pour aujourd'hui
+  const isCloudy = todayWeather.some(w => 
+    w.cloudCover && w.cloudCover > 80 || 
+    (w.weatherCode && [1, 2, 3].includes(w.weatherCode))
+  );
+
   return {
     passages: {
       dayBeforeYesterday: Number(dayBeforeYesterdayStats._sum?.value || 0),
@@ -113,6 +130,8 @@ export async function getDailyStats(): Promise<DailyStats> {
     weather: {
       yesterday: yesterdayMaxTemp === -100 ? null : yesterdayMaxTemp,
       today: todayMaxTemp === -100 ? null : todayMaxTemp,
+      isRaining,
+      isCloudy,
     },
   };
 }

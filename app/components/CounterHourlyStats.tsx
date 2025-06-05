@@ -14,9 +14,11 @@ import {
 } from "recharts";
 import { getHourlyStats } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
+import { PreloadedCounterData } from "../page";
 
 interface CounterHourlyStatsProps {
   counter: BikeCounter | null;
+  preloadedData: PreloadedCounterData | null;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -35,32 +37,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function CounterHourlyStats({
-  counter,
-}: CounterHourlyStatsProps) {
-  const [hourlyStats, setHourlyStats] = useState<{
-    monday: { hour: number; value: number }[];
-    tuesday: { hour: number; value: number }[];
-    wednesday: { hour: number; value: number }[];
-    thursday: { hour: number; value: number }[];
-    friday: { hour: number; value: number }[];
-    saturday: { hour: number; value: number }[];
-    sunday: { hour: number; value: number }[];
-  } | null>(null);
-
-  useEffect(() => {
-    if (!counter) return;
-
-    async function fetchHourlyStats() {
-      if (!counter) return;
-      const data = await getHourlyStats(counter.id);
-      setHourlyStats(data);
-    }
-
-    fetchHourlyStats();
-  }, [counter]);
-
-  if (!counter || !hourlyStats) return <CounterSkeleton />;
+export default function CounterHourlyStats({ counter, preloadedData }: CounterHourlyStatsProps) {
+  if (!counter || !preloadedData) return <CounterSkeleton />;
 
   const formatValue = (value: number) => {
     return new Intl.NumberFormat("fr-FR").format(value);
@@ -69,7 +47,7 @@ export default function CounterHourlyStats({
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const hasData = (day: string) => {
-    const dayData = hourlyStats[day as keyof typeof hourlyStats];
+    const dayData = preloadedData.hourlyStats[day as keyof typeof preloadedData.hourlyStats];
     return dayData && dayData.some((stat) => stat.value > 0);
   };
 
@@ -103,7 +81,7 @@ export default function CounterHourlyStats({
                 ...Object.fromEntries(
                   visibleDays.map((day) => [
                     day.key,
-                    hourlyStats[day.key as keyof typeof hourlyStats][hour]
+                    preloadedData.hourlyStats[day.key as keyof typeof preloadedData.hourlyStats][hour]
                       .value,
                   ])
                 ),
@@ -118,7 +96,6 @@ export default function CounterHourlyStats({
                 tick={{ fill: "#64748b", fontSize: 10 }}
                 domain={[0, 23]}
                 ticks={hours}
-
               />
               <YAxis
                 tickFormatter={formatValue}
