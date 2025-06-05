@@ -1,12 +1,8 @@
 "use server";
 
-import { getDailyStats, getGlobalStats } from "@/app/actions/counters";
+import { getGlobalStats } from "@/app/actions/counters";
+import { getDailyStats } from "@/app/actions/dailyStats";
 import NumberFlow from "@/app/components/NumberFlow";
-import DailyStats from "@/app/components/Stats/DailyStats";
-import WeatherStats from "@/app/components/Stats/WeatherStats";
-import { Suspense } from "react";
-import DailyStatsSkeleton from "@/app/components/Stats/DailyStatsSkeleton";
-import WeatherStatsSkeleton from "@/app/components/Stats/WeatherStatsSkeleton";
 
 const getDailyStatsData = async () => {
   const data = await getDailyStats();
@@ -19,8 +15,14 @@ const getGlobalStatsData = async () => {
 };
 
 export default async function HeroSection() {
-  const stats = await getGlobalStatsData();
-  const dailyStats = await getDailyStatsData();
+  const [stats, dailyStats] = await Promise.all([
+    getGlobalStatsData(),
+    getDailyStatsData(),
+  ]);
+
+  const maxPassages = Math.max(dailyStats.passages.yesterday, dailyStats.passages.dayBeforeYesterday);
+  const yesterdayPercentage = (dailyStats.passages.yesterday / maxPassages) * 100;
+  const dayBeforeYesterdayPercentage = (dailyStats.passages.dayBeforeYesterday / maxPassages) * 100;
 
   return (
     <div className="bg-gradient-to-b from-blue-50 to-white">
@@ -40,13 +42,45 @@ export default async function HeroSection() {
                 : "début des mesures"}
             </p>
           </div>
-          <div className="flex gap-4">
-            <Suspense fallback={<DailyStatsSkeleton />}>
-              <DailyStats passages={dailyStats.passages} />
-            </Suspense>
-            <Suspense fallback={<WeatherStatsSkeleton />}>
-              <WeatherStats weather={dailyStats.weather} />
-            </Suspense>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="w-24 text-sm text-gray-700 text-left">
+                Avant-hier
+              </span>
+              <div className="relative flex-1 flex items-center h-8 bg-gray-200 rounded">
+                <div
+                  className="absolute left-0 top-0 h-8 rounded bg-blue-500 transition-all duration-500"
+                  style={{ width: `${dayBeforeYesterdayPercentage}%` }}
+                ></div>
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black text-sm px-2 py-0.5 rounded shadow">
+                  <NumberFlow value={dailyStats.passages.dayBeforeYesterday} />
+                </span>
+              </div>
+              {dailyStats.weather.yesterday !== null && (
+                <span className="text-sm text-gray-600 w-16">
+                  {dailyStats.weather.yesterday}°C
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-24 text-sm text-gray-700 text-left">
+                Hier
+              </span>
+              <div className="relative flex-1 flex items-center h-8 bg-gray-200 rounded">
+                <div
+                  className="absolute left-0 top-0 h-8 rounded bg-green-500 transition-all duration-500"
+                  style={{ width: `${yesterdayPercentage}%` }}
+                ></div>
+                <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white text-black text-sm px-2 py-0.5 rounded shadow">
+                  <NumberFlow value={dailyStats.passages.yesterday} />
+                </span>
+              </div>
+              {dailyStats.weather.today !== null && (
+                <span className="text-sm text-gray-600 w-16">
+                  {dailyStats.weather.today}°C
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

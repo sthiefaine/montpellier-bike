@@ -1,118 +1,90 @@
-'use client';
+"use client";
 
-import type { BikeCounter } from "@prisma/client";
 import { useEffect, useState } from "react";
+import type { BikeCounter } from "@prisma/client";
 import { getCounterStats } from "@/app/actions/counters";
+import CounterSkeleton from "./CounterSkeleton";
+import NumberFlow from "./NumberFlow";
 
 interface CounterDetailsProps {
   counter: BikeCounter | null;
 }
 
-interface CounterStats {
-  yesterday: number;
-  today: number;
-  firstPassageDate: Date | null;
-  lastPassageDate: Date | null;
-  lastPassageYesterday: Date | null;
-  lastPassageToday: Date | null;
-}
-
 export default function CounterDetails({ counter }: CounterDetailsProps) {
-  const [stats, setStats] = useState<CounterStats | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [stats, setStats] = useState<{
+    yesterday: number;
+    today: number;
+    totalPassages: number;
+    firstPassageDate: Date | null;
+    lastPassageDate: Date | null;
+    lastPassageYesterday: Date | null;
+    lastPassageToday: Date | null;
+  } | null>(null);
 
   useEffect(() => {
-    async function fetchStats() {
-      if (!counter) {
-        setStats(null);
-        return;
-      }
+    if (!counter) return;
 
-      setIsLoading(true);
-      try {
-        const stats = await getCounterStats(counter.id);
-        setStats(stats);
-      } catch (error) {
-        console.error('Erreur lors de la récupération des statistiques:', error);
-      } finally {
-        setIsLoading(false);
-      }
+    async function fetchStats() {
+      if (!counter) return;
+      const data = await getCounterStats(counter.id);
+      setStats(data);
     }
 
     fetchStats();
   }, [counter]);
 
-  if (!counter) {
-    return (
-      <div className="p-6 bg-white rounded-xl shadow-lg h-full">
-        <div className="flex items-center justify-center h-full">
-          <p className="text-gray-500 text-lg">Sélectionnez un compteur sur la carte pour voir ses détails</p>
-        </div>
-      </div>
-    );
-  }
+  if (!counter || !stats) return <CounterSkeleton />;
+
+  const formatDate = (date: Date | null) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleDateString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
+
+  const formatDateTime = (date: Date | null) => {
+    if (!date) return "N/A";
+    return new Date(date).toLocaleString("fr-FR", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
 
   return (
-    <div className="p-6 bg-white rounded-xl shadow-lg h-full">
-      <h2 className="text-2xl font-bold mb-6 text-gray-800">{counter.name}</h2>
-      <div className="space-y-4">
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <p className="text-gray-600"><span className="font-semibold text-gray-800">Numéro de série :</span> {counter.serialNumber}</p>
-        </div>
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <p className="text-gray-600">
-            <span className="font-semibold text-gray-800">Premier passage :</span>{" "}
-            {stats?.firstPassageDate 
-              ? new Date(stats.firstPassageDate).toLocaleDateString()
-              : "Aucune donnée"}
-          </p>
-        </div>
-        <div className="p-4 bg-gray-50 rounded-lg">
-          <p className="text-gray-600">
-            <span className="font-semibold text-gray-800">Dernier passage :</span>{" "}
-            {stats?.lastPassageDate 
-              ? new Date(stats.lastPassageDate).toLocaleString('fr-FR', {
-                  dateStyle: 'short',
-                  timeStyle: 'short'
-                })
-              : "Aucune donnée"}
-          </p>
-        </div>
+    <div className="space-y-1">
+      <h3 className="text-lg font-semibold text-gray-900">
+        Informations générales
+      </h3>
+      <div className="bg-green-50 p-1 rounded-lg h-[60px]">
+        <p className="text-sm font-medium text-green-900 mb-1">
+          Nom du compteur
+        </p>
+        <p className="text-xs font-semibold text-green-700 first-letter:uppercase">{counter.name}</p>
+      </div>
 
-        <div className="mt-8">
-          <h3 className="text-xl font-bold mb-4 text-gray-800">Statistiques</h3>
-          {isLoading ? (
-            <div className="flex items-center justify-center p-4">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            </div>
-          ) : stats ? (
-            <div className="space-y-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-blue-800">
-                  <span className="font-semibold">Hier :</span> {stats.yesterday.toLocaleString()} passages
-                  {stats.lastPassageYesterday && (
-                    <span className="block text-sm mt-1">
-                      Dernier passage : {new Date(stats.lastPassageYesterday).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                </p>
-              </div>
-              <div className="p-4 bg-green-50 rounded-lg">
-                <p className="text-green-800">
-                  <span className="font-semibold">Aujourd'hui :</span> {stats.today.toLocaleString()} passages
-                  {stats.lastPassageToday && (
-                    <span className="block text-sm mt-1">
-                      Dernier passage : {new Date(stats.lastPassageToday).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  )}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <p className="text-gray-500">Aucune donnée disponible</p>
-          )}
-        </div>
+      <div className="bg-orange-50 p-1 rounded-lg h-[60px]">
+        <p className="text-sm font-medium text-orange-900 mb-1">
+          Premier passage
+        </p>
+        <p className="text-base font-semibold text-orange-700 first-letter:uppercase">
+          {formatDate(stats.firstPassageDate)}
+        </p>
+      </div>
+      <div className="bg-indigo-50 p-1 rounded-lg h-[60px]">
+        <p className="text-sm font-medium text-indigo-900 mb-1">
+          Dernier passage
+        </p>
+        <p className="text-base font-semibold text-indigo-700 first-letter:uppercase">
+          {formatDateTime(stats.lastPassageDate)}
+        </p>
       </div>
     </div>
   );
-} 
+}

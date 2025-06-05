@@ -76,6 +76,7 @@ export async function GET(req: NextRequest) {
 
     let totalInserted = 0;
     for (const counter of counters) {
+      // On récupère le serialNumber1 si il existe et si il commence par une lettre
       const serialNumber =
         counter.serialNumber1 && /^[a-zA-Z]/.test(counter.serialNumber1)
           ? counter.serialNumber1

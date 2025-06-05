@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export type DailyStats = {
   passages: {
+    dayBeforeYesterday: number;
     yesterday: number;
     today: number;
   };
@@ -14,78 +15,104 @@ export type DailyStats = {
 };
 
 export async function getDailyStats(): Promise<DailyStats> {
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(0, 0, 0, 0);
-
-  const today = new Date();
+  const timeZone = "Europe/Paris";
+  const today = new Date(new Date().toLocaleString("en-US", { timeZone }));
   today.setHours(0, 0, 0, 0);
 
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  const dayBeforeYesterday = new Date(today);
+  dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
   // Statistiques des passages
-  const yesterdayStats = await prisma.counterTimeseries.aggregate({
+  const [dayBeforeYesterdayStats, yesterdayStats, todayStats] = await Promise.all([
+    prisma.counterTimeseries.aggregate({
+      where: {
+        date: {
+          gte: dayBeforeYesterday,
+          lt: yesterday,
+        },
+      },
+      _sum: {
+        value: true,
+      },
+    }),
+    prisma.counterTimeseries.aggregate({
+      where: {
+        date: {
+          gte: yesterday,
+          lt: today,
+        },
+      },
+      _sum: {
+        value: true,
+      },
+    }),
+    prisma.counterTimeseries.aggregate({
+      where: {
+        date: {
+          gte: today,
+          lt: tomorrow,
+        },
+      },
+      _sum: {
+        value: true,
+      },
+    }),
+  ]);
+
+  // Récupération des températures pour hier
+  const yesterdayWeather = await prisma.weatherTimeseries.findMany({
     where: {
       date: {
         gte: yesterday,
         lt: today,
       },
+      type: "hourly",
     },
-    _sum: {
-      value: true,
+    select: {
+      temperature2m: true,
     },
   });
 
-  const todayStats = await prisma.counterTimeseries.aggregate({
+  // Récupération des températures pour aujourd'hui
+  const todayWeather = await prisma.weatherTimeseries.findMany({
     where: {
       date: {
         gte: today,
-      },
-    },
-    _sum: {
-      value: true,
-    },
-  });
-
-  // Récupération des températures
-  const weatherData = await prisma.weatherTimeseries.findMany({
-    where: {
-      date: {
-        gte: yesterday,
-        lt: new Date(today.getTime() + 24 * 60 * 60 * 1000),
+        lt: tomorrow,
       },
       type: "hourly",
     },
     select: {
-      date: true,
       temperature2m: true,
-    },
-    orderBy: {
-      date: "asc",
     },
   });
 
-  // Calcul des températures max par jour
-  const maxTemps = weatherData.reduce((acc, curr) => {
-    const date = new Date(curr.date);
-    date.setHours(0, 0, 0, 0);
-    const dateStr = date.toISOString();
+  // Calcul des températures maximales
+  const yesterdayMaxTemp = yesterdayWeather
+    .map((w) => w.temperature2m)
+    .filter((temp): temp is number => temp !== null)
+    .reduce((max, temp) => Math.max(max, temp), -100);
 
-    if (
-      !acc[dateStr] ||
-      (curr.temperature2m && curr.temperature2m > acc[dateStr])
-    ) {
-      acc[dateStr] = curr.temperature2m;
-    }
-    return acc;
-  }, {} as Record<string, number | null>);
+  const todayMaxTemp = todayWeather
+    .map((w) => w.temperature2m)
+    .filter((temp): temp is number => temp !== null)
+    .reduce((max, temp) => Math.max(max, temp), -100);
 
   return {
     passages: {
-      yesterday: yesterdayStats._sum.value || 0,
-      today: todayStats._sum.value || 0,
+      dayBeforeYesterday: Number(dayBeforeYesterdayStats._sum?.value || 0),
+      yesterday: Number(yesterdayStats._sum?.value || 0),
+      today: Number(todayStats._sum?.value || 0),
     },
     weather: {
-      yesterday: maxTemps[yesterday.toISOString()] || null,
-      today: maxTemps[today.toISOString()] || null,
+      yesterday: yesterdayMaxTemp === -100 ? null : yesterdayMaxTemp,
+      today: todayMaxTemp === -100 ? null : todayMaxTemp,
     },
   };
 }

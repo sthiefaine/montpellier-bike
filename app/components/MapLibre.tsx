@@ -5,11 +5,8 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapLibreSkeleton } from "./MapLibreSkeleton";
 import type { BikeCounter } from "@prisma/client";
-import { defaultCenters } from "@/lib/defaultCenters";
-import { prisma } from "@/lib/prisma";
 import { getCountersStatus } from "@/app/actions/counters";
 
-// Nouveau type pour les cercles météo
 export type WeatherCircle = { lat: number; lon: number; radius: number };
 
 interface MapLibreProps {
@@ -26,6 +23,7 @@ interface MapLibreProps {
   onMapReady?: () => void;
   weatherCircles?: WeatherCircle[];
   onCounterSelect?: (counter: BikeCounter | null) => void;
+  defaultSelectedCounter?: BikeCounter | null;
 }
 
 const bounds: maplibregl.LngLatBoundsLike = [
@@ -40,8 +38,7 @@ function createGeoJSONCircle(
 ): any {
   const radius = center.radius ?? radiusInMeters;
   const coords = [];
-  const distanceX =
-    radius / (111320 * Math.cos((center.lat * Math.PI) / 180));
+  const distanceX = radius / (111320 * Math.cos((center.lat * Math.PI) / 180));
   const distanceY = radiusInMeters / 110574;
   for (let i = 0; i < points; i++) {
     const theta = (i / points) * (2 * Math.PI);
@@ -61,7 +58,12 @@ function createGeoJSONCircle(
 }
 
 // Fonction utilitaire pour calculer la distance entre deux points (Haversine)
-function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+function haversineDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) {
   const R = 6371000; // Rayon de la Terre en mètres
   const toRad = (x: number) => (x * Math.PI) / 180;
   const dLat = toRad(lat2 - lat1);
@@ -77,18 +79,21 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 // Fonction pour associer chaque point à son cercle parent (le plus petit qui le contient)
-function assignPointsToCircles(points: { lat: number; lng: number; id?: any }[], circles: { lat: number; lon?: number; lng?: number; radius: number }[]) {
+function assignPointsToCircles(
+  points: { lat: number; lng: number; id?: any }[],
+  circles: { lat: number; lon?: number; lng?: number; radius: number }[]
+) {
   // On accepte "lon" ou "lng" pour la compatibilité
-  const normCircles = circles.map(c => ({
+  const normCircles = circles.map((c) => ({
     lat: c.lat,
     lng: c.lng !== undefined ? c.lng : c.lon!,
     radius: c.radius,
   }));
   // On trie les cercles du plus petit au plus grand rayon
   const sortedCircles = normCircles.slice().sort((a, b) => a.radius - b.radius);
-  return points.map(pt => {
-    const parentIdx = sortedCircles.findIndex(c =>
-      haversineDistance(pt.lat, pt.lng, c.lat, c.lng) <= c.radius
+  return points.map((pt) => {
+    const parentIdx = sortedCircles.findIndex(
+      (c) => haversineDistance(pt.lat, pt.lng, c.lat, c.lng) <= c.radius
     );
     return {
       ...pt,
@@ -106,12 +111,15 @@ export default function MapLibre({
   onMapReady,
   weatherCircles,
   onCounterSelect,
+  defaultSelectedCounter,
 }: MapLibreProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const markersRef = useRef<maplibregl.Marker[]>([]);
-  const [selectedCounter, setSelectedCounter] = useState<BikeCounter | null>(null);
+  const [selectedCounter, setSelectedCounter] = useState<BikeCounter | null>(
+    defaultSelectedCounter || null
+  );
   const [activeCounters, setActiveCounters] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -131,6 +139,7 @@ export default function MapLibre({
       zoom: 10,
       maxBounds: bounds,
       maxZoom: 18,
+      attributionControl: false
     });
     map.current.on("load", () => {
       setIsLoading(false);
@@ -141,8 +150,10 @@ export default function MapLibre({
           const circleId = `weather-circle-${idx}`;
           if (!map.current) return;
           if (map.current.getLayer(circleId)) map.current.removeLayer(circleId);
-          if (map.current.getLayer(`${circleId}-border`)) map.current.removeLayer(`${circleId}-border`);
-          if (map.current.getSource(circleId)) map.current.removeSource(circleId);
+          if (map.current.getLayer(`${circleId}-border`))
+            map.current.removeLayer(`${circleId}-border`);
+          if (map.current.getSource(circleId))
+            map.current.removeSource(circleId);
           const circlePolygon = createGeoJSONCircle(
             { lat: circle.lat, lng: circle.lon, radius: circle.radius },
             circle.radius
@@ -173,11 +184,15 @@ export default function MapLibre({
         });
       }
       // Association points <-> cercles météo
-      let circlesToUse = weatherCircles && weatherCircles.length > 0
-        ? weatherCircles
-        : [];
+      let circlesToUse =
+        weatherCircles && weatherCircles.length > 0 ? weatherCircles : [];
       if (counters && counters.length > 0) {
-        const points = counters.map(c => ({ lat: c.latitude, lng: c.longitude, id: c.id, name: c.name }));
+        const points = counters.map((c) => ({
+          lat: c.latitude,
+          lng: c.longitude,
+          id: c.id,
+          name: c.name,
+        }));
         const result = assignPointsToCircles(points, circlesToUse);
         console.log("Points associés à leur cercle parent :", result);
       }
@@ -219,15 +234,16 @@ export default function MapLibre({
 
     counters.forEach((counter) => {
       const isActive = activeCounters.has(counter.id);
-      
+
       const el = document.createElement("div");
       el.className = "marker";
       el.style.width = "20px";
       el.style.height = "20px";
-      el.style.backgroundColor = selectedCounter?.id === counter.id 
-        ? "#3B82F6" 
-        : isActive 
-          ? "#22C55E" 
+      el.style.backgroundColor =
+        selectedCounter?.id === counter.id
+          ? "#3B82F6"
+          : isActive
+          ? "#22C55E"
           : "#EF4444";
       el.style.borderRadius = "50%";
       el.style.border = "2px solid white";
@@ -246,12 +262,12 @@ export default function MapLibre({
           }).setHTML(`
             <h3 class="font-bold text-black">${counter.name}</h3>
             <p class="text-black">Numéro de série: ${counter.serialNumber}</p>
-            <p class="text-black">Statut: ${isActive ? 'Actif' : 'Inactif'}</p>
+            <p class="text-black">Statut: ${isActive ? "Actif" : "Inactif"}</p>
           `)
         )
         .addTo(map.current!);
 
-      marker.getElement().addEventListener('click', () => {
+      marker.getElement().addEventListener("click", () => {
         setSelectedCounter(counter);
         onCounterSelect?.(counter);
       });
@@ -271,4 +287,3 @@ export default function MapLibre({
     </div>
   );
 }
-

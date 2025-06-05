@@ -36,6 +36,20 @@ export default function DailyStats({ passages }: DailyStatsProps) {
     return value.toLocaleString("fr-FR");
   };
 
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-white p-2 rounded-lg shadow-lg border border-gray-100 absolute -translate-x-1/2">
+          <p className="text-gray-700 font-medium">{label}</p>
+          <p className="text-orange-500 font-semibold">
+            {formatValue(payload[0].value)}
+          </p>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="bg-white/50 backdrop-blur-sm p-4 rounded-2xl shadow-sm border border-gray-100">
       <h3 className="text-lg font-medium text-gray-700 mb-4">Passages</h3>
@@ -43,7 +57,9 @@ export default function DailyStats({ passages }: DailyStatsProps) {
         <ResponsiveContainer width={250} height="100%">
           <BarChart
             data={chartData}
-            margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+            margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
+            barGap={0}
+            barSize={50}
           >
             <defs>
               <linearGradient id="colorPassages" x1="0" y1="0" x2="0" y2="1">
@@ -57,6 +73,7 @@ export default function DailyStats({ passages }: DailyStatsProps) {
               axisLine={false}
               tickLine={false}
               tick={{ fill: "#64748b", fontSize: 12 }}
+              padding={{ left: 0, right: 0 }}
             />
             <YAxis
               tickFormatter={formatValue}
@@ -64,22 +81,12 @@ export default function DailyStats({ passages }: DailyStatsProps) {
               tickLine={false}
               tick={{ fill: "#64748b", fontSize: 12 }}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "rgba(255, 255, 255, 0.9)",
-                border: "none",
-                borderRadius: "8px",
-                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                fontSize: "12px",
-              }}
-              formatter={(value: number) => formatValue(value)}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Bar
               dataKey="passages"
               name="Passages"
               fill="url(#colorPassages)"
               radius={[4, 4, 0, 0]}
-              barSize={40}
             />
           </BarChart>
         </ResponsiveContainer>
