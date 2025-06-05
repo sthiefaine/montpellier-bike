@@ -9,25 +9,19 @@ export async function getCounters(): Promise<BikeCounter[]> {
 }
 
 export async function getCounterStats(counterId: string) {
-  const yesterday = new Date();
+  const timeZone = "Europe/Paris";
+  const today = new Date(new Date().toLocaleString("en-US", { timeZone }));
+  today.setHours(0, 0, 0, 0);
+
+  const yesterday = new Date(today);
   yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(0, 0, 0, 0);
 
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-
-  const endOfToday = new Date();
+  const startOfToday = new Date(today);
+  const endOfToday = new Date(today);
   endOfToday.setHours(23, 59, 59, 999);
 
-  const startOfYesterday = new Date();
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-  startOfYesterday.setHours(0, 0, 0, 0);
-
-  const endOfYesterday = new Date();
-  endOfYesterday.setDate(endOfYesterday.getDate() - 1);
+  const startOfYesterday = new Date(yesterday);
+  const endOfYesterday = new Date(yesterday);
   endOfYesterday.setHours(23, 59, 59, 999);
 
   const [
@@ -43,8 +37,8 @@ export async function getCounterStats(counterId: string) {
       where: {
         counterId,
         date: {
-          gte: yesterday,
-          lt: today,
+          gte: startOfYesterday,
+          lte: endOfYesterday,
         },
       },
       _sum: {
@@ -115,10 +109,12 @@ export async function getCounterStats(counterId: string) {
 
   const [maxDay] = await prisma.$queryRaw<{ day: string; total: bigint }[]>(
     Prisma.sql`
-      SELECT DATE(date)::text as day, SUM(value)::bigint as total
+      SELECT 
+        DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')::text as day,
+        SUM(value)::bigint as total
       FROM "CounterTimeseries"
-      WHERE "counterId" = ${counterId} AND date <= ${today}
-      GROUP BY DATE(date)
+      WHERE "counterId" = ${counterId} AND date <= ${endOfToday}
+      GROUP BY DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
       ORDER BY total DESC
       LIMIT 1
     `
