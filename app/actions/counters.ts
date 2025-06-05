@@ -10,7 +10,10 @@ export async function getCounters(): Promise<BikeCounter[]> {
 
 export async function getCounterStats(counterId: string) {
   const timeZone = "Europe/Paris";
-  const today = new Date(new Date().toLocaleString("en-US", { timeZone }));
+  
+  // Création des dates avec le fuseau horaire de Paris
+  const now = new Date(new Date().toLocaleString("en-US", { timeZone }));
+  const today = new Date(now);
   today.setHours(0, 0, 0, 0);
 
   const yesterday = new Date(today);
@@ -33,30 +36,24 @@ export async function getCounterStats(counterId: string) {
     lastPassageToday,
     totalPassages,
   ] = await Promise.all([
-    prisma.counterTimeseries.aggregate({
-      where: {
-        counterId,
-        date: {
-          gte: startOfYesterday,
-          lte: endOfYesterday,
-        },
-      },
-      _sum: {
-        value: true,
-      },
-    }),
-    prisma.counterTimeseries.aggregate({
-      where: {
-        counterId,
-        date: {
-          gte: startOfToday,
-          lte: endOfToday,
-        },
-      },
-      _sum: {
-        value: true,
-      },
-    }),
+    prisma.$queryRaw<{ total: bigint }[]>(
+      Prisma.sql`
+        SELECT COALESCE(SUM(value), 0)::bigint as total
+        FROM "CounterTimeseries"
+        WHERE "counterId" = ${counterId}
+          AND date >= ${startOfYesterday}
+          AND date <= ${endOfYesterday}
+      `
+    ),
+    prisma.$queryRaw<{ total: bigint }[]>(
+      Prisma.sql`
+        SELECT COALESCE(SUM(value), 0)::bigint as total
+        FROM "CounterTimeseries"
+        WHERE "counterId" = ${counterId}
+          AND date >= ${startOfToday}
+          AND date <= ${endOfToday}
+      `
+    ),
     prisma.counterTimeseries.findFirst({
       where: {
         counterId,
@@ -73,30 +70,28 @@ export async function getCounterStats(counterId: string) {
         date: "desc",
       },
     }),
-    prisma.counterTimeseries.findFirst({
-      where: {
-        counterId,
-        date: {
-          gte: startOfYesterday,
-          lte: endOfYesterday,
-        },
-      },
-      orderBy: {
-        date: "desc",
-      },
-    }),
-    prisma.counterTimeseries.findFirst({
-      where: {
-        counterId,
-        date: {
-          gte: startOfToday,
-          lte: endOfToday,
-        },
-      },
-      orderBy: {
-        date: "desc",
-      },
-    }),
+    prisma.$queryRaw<{ date: Date }[]>(
+      Prisma.sql`
+        SELECT date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris' as date
+        FROM "CounterTimeseries"
+        WHERE "counterId" = ${counterId}
+          AND date >= ${startOfYesterday}
+          AND date <= ${endOfYesterday}
+        ORDER BY date DESC
+        LIMIT 1
+      `
+    ),
+    prisma.$queryRaw<{ date: Date }[]>(
+      Prisma.sql`
+        SELECT date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris' as date
+        FROM "CounterTimeseries"
+        WHERE "counterId" = ${counterId}
+          AND date >= ${startOfToday}
+          AND date <= ${endOfToday}
+        ORDER BY date DESC
+        LIMIT 1
+      `
+    ),
     prisma.counterTimeseries.aggregate({
       where: {
         counterId,
@@ -113,7 +108,8 @@ export async function getCounterStats(counterId: string) {
         DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')::text as day,
         SUM(value)::bigint as total
       FROM "CounterTimeseries"
-      WHERE "counterId" = ${counterId} AND date <= ${endOfToday}
+      WHERE "counterId" = ${counterId} 
+        AND date <= ${endOfToday}
       GROUP BY DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
       ORDER BY total DESC
       LIMIT 1
@@ -121,12 +117,12 @@ export async function getCounterStats(counterId: string) {
   );
 
   return {
-    yesterday: Number(yesterdayStats._sum?.value || 0),
-    today: Number(todayStats._sum?.value || 0),
+    yesterday: Number(yesterdayStats[0]?.total || 0),
+    today: Number(todayStats[0]?.total || 0),
     firstPassageDate: firstPassage?.date || null,
     lastPassageDate: lastPassage?.date || null,
-    lastPassageYesterday: lastPassageYesterday?.date || null,
-    lastPassageToday: lastPassageToday?.date || null,
+    lastPassageYesterday: lastPassageYesterday[0]?.date || null,
+    lastPassageToday: lastPassageToday[0]?.date || null,
     totalPassages: Number(totalPassages._sum?.value || 0),
     maxDay: maxDay
       ? {
