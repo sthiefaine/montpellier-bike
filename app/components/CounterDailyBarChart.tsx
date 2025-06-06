@@ -11,11 +11,16 @@ import {
   PointElement,
   Tooltip,
   Legend,
+  ChartData,
+  BarController,
+  LineController,
 } from "chart.js";
 import { PreloadedCounterData } from "../page";
 import { useEffect, useState } from "react";
 
 ChartJS.register(
+  BarController,
+  LineController,
   CategoryScale,
   LinearScale,
   BarElement,
@@ -62,7 +67,11 @@ export default function CounterDailyBarChart({
     });
   };
 
-  const chartData = {
+  if (!preloadedData?.dailyBarStats?.year?.length) {
+    return <CounterSkeleton />;
+  }
+
+  const chartData: ChartData = {
     labels: preloadedData.dailyBarStats.year.map((d) => formatDate(d.day)),
     datasets: [
       {
@@ -73,14 +82,14 @@ export default function CounterDailyBarChart({
         borderWidth: 1,
         barPercentage: 1.0,
         categoryPercentage: 1.0,
-        type: "bar" as const,
+        type: "bar",
       },
       {
         label: "Moyenne globale",
         data: Array(preloadedData.dailyBarStats.year.length).fill(
           preloadedData.dailyBarStats.globalAverage
         ),
-        type: "line" as const,
+        type: "line",
         borderColor: "#3b82f6",
         borderWidth: 2,
         pointRadius: 0,
@@ -92,7 +101,7 @@ export default function CounterDailyBarChart({
         data: Array(preloadedData.dailyBarStats.year.length).fill(
           preloadedData.dailyBarStats.activeDaysAverage
         ),
-        type: "line" as const,
+        type: "line",
         borderColor: "#f59e0b",
         borderWidth: 2,
         pointRadius: 0,

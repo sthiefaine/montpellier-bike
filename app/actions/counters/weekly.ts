@@ -32,7 +32,7 @@ export async function getWeeklyStats(counterId: string) {
           FROM "CounterTimeseries"
           WHERE "counterId" = ${counterId}
             AND date >= ${startOfWeek}
-            AND date < ${endOfToday}
+            AND date <= ${endOfToday}
           GROUP BY (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris' - interval '1 hour'))
         )
         SELECT day, total
@@ -49,7 +49,7 @@ export async function getWeeklyStats(counterId: string) {
           FROM "CounterTimeseries"
           WHERE "counterId" = ${counterId}
             AND date >= ${startOfLastWeek}
-            AND date < ${startOfWeek}
+            AND date <= ${startOfWeek}
           GROUP BY (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris' - interval '1 hour'))
         )
         SELECT day, total

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import MapLibre from "./MapLibre";
 import CounterDetails from "./CounterDetails";
 import CounterDailyStats from "@/app/components/CounterDailyStats";
@@ -74,15 +74,17 @@ export default function CounterDetailsSection({
             />
           </div>
         </section>
-{/*         <section className="bg-white rounded-xl shadow-lg p-4 @container col-span-1 sm:col-span-2 lg:col-span-3">
+        <section className="bg-white rounded-xl shadow-lg p-4 @container col-span-1 sm:col-span-2 lg:col-span-3">
           <div className="h-[calc(60vh-8rem)]">
-            <CounterDailyBarChart
-              counter={selectedCounter}
-              preloadedData={selectedCounterData}
-              currentYear={currentYear}
-            />
+            <Suspense fallback={<div>Loading...</div>}>
+              <CounterDailyBarChart
+                counter={selectedCounter}
+                preloadedData={selectedCounterData}
+                currentYear={currentYear}
+              />
+            </Suspense>
           </div>
-        </section> */}
+        </section>
         <section className="bg-white rounded-xl shadow-lg p-4 @container col-span-1 sm:col-span-2">
           <div className="h-[calc(60vh-8rem)]">
             <CounterHourlyStats

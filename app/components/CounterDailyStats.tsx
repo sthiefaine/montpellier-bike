@@ -15,20 +15,24 @@ export default function CounterDailyStats({
   preloadedData,
 }: CounterDailyStatsProps) {
   const stats = preloadedData?.counterStats;
+  console.log(stats);
 
   if (!counter || !stats) return <CounterSkeleton />;
 
   const formatTime = (date: Date | null) => {
     if (!date) return null;
-    if (date.getHours() === 0 && date.getMinutes() === 0) {
-      return "23:59";
-    }
+
     const utcDate = new Date(date);
-    return utcDate.toLocaleTimeString("fr-FR", {
+    const time = utcDate.toLocaleTimeString("fr-FR", {
       hour: "2-digit",
       minute: "2-digit",
       timeZone: "Europe/Paris",
     });
+
+    if (time === "00:00") {
+      return "23:59";
+    }
+    return time;
   };
 
   const formatDate = (date: Date) => {
