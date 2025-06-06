@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { BikeCounter } from "@prisma/client";
-import { getYearlyStats } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
 import { PreloadedCounterData } from "../page";
 
@@ -11,23 +9,26 @@ interface CounterYearlyStatsProps {
   preloadedData: PreloadedCounterData | null;
 }
 
-const COLORS = [
-  "#3b82f6", // bleu
-  "#22c55e", // vert
-  "#eab308", // jaune
-  "#ef4444", // rouge
-  "#8b5cf6", // violet
-  "#ec4899", // rose
-  "#14b8a6", // turquoise
-  "#f97316", // orange
-];
+const COLORS: Record<string, string> = {
+  "2019": "#8b5cf6",
+  "2020": "#ec4899",
+  "2021": "#14b8a6",
+  "2022": "#3b82f6",
+  "2023": "#22c55e",
+  "2024": "#eab000",
+  "2025": "#ef4444",
+  "2026": "#f97316",
+  "2027": "#ec4863",
+};
 
 export default function CounterYearlyStats({
   counter,
   preloadedData,
 }: CounterYearlyStatsProps) {
   const yearlyStats = preloadedData?.yearlyStats;
-
+  const filteredYearlyStats = yearlyStats?.filter(
+    (stat) => stat.year <= new Date().getFullYear()
+  );
 
   if (!counter || !yearlyStats) return <CounterSkeleton />;
 
@@ -43,7 +44,7 @@ export default function CounterYearlyStats({
         Total passages par année
       </h3>
       <div className="space-y-2">
-        {yearlyStats.map((stat, idx) => (
+        {filteredYearlyStats?.map((stat, idx) => (
           <div key={stat.year} className="flex items-center gap-2">
             <span className="w-6 text-xs text-gray-700 text-left">
               {stat.year}
@@ -53,7 +54,7 @@ export default function CounterYearlyStats({
                 className="absolute left-0 top-0 h-8 rounded"
                 style={{
                   width: `${(stat.total / maxTotal) * 100}%`,
-                  background: COLORS[idx % COLORS.length],
+                  background: COLORS[stat.year.toString()],
                   transition: "width 0.5s",
                 }}
               ></div>

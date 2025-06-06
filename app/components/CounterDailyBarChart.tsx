@@ -1,49 +1,103 @@
-import { useEffect, useState } from "react";
+"use client";
 import type { BikeCounter } from "@prisma/client";
-import { getDailyStatsForYear } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
-import { Bar } from "react-chartjs-2";
+import { Chart } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
   BarElement,
+  LineElement,
+  PointElement,
   Tooltip,
   Legend,
 } from "chart.js";
 import { PreloadedCounterData } from "../page";
+import { useEffect, useState } from "react";
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend);
-
-type DailyBar = { day: string; value: number };
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  LineElement,
+  PointElement,
+  Tooltip,
+  Legend
+);
 
 interface CounterDailyBarChartProps {
   counter: BikeCounter | null;
   preloadedData: PreloadedCounterData | null;
+  currentYear: string;
 }
 
-export default function CounterDailyBarChart({ counter, preloadedData }: CounterDailyBarChartProps) {
+export default function CounterDailyBarChart({
+  counter,
+  preloadedData,
+  currentYear,
+}: CounterDailyBarChartProps) {
+  const [hiddenDatasets, setHiddenDatasets] = useState<{
+    [key: string]: boolean;
+  }>({
+    globalAverage: true,
+    activeDaysAverage: false,
+  });
+
+  useEffect(() => {
+    setHiddenDatasets((prev) => ({
+      ...prev,
+      globalAverage: true,
+      activeDaysAverage: false,
+    }));
+  }, [counter]);
+
   if (!counter || !preloadedData) return <CounterSkeleton />;
 
   const formatDate = (date: string) => {
-    // display only the day and month of current year
-    return new Date(date).toLocaleDateString("fr-FR", {
+    const utcDate = new Date(date);
+    return utcDate.toLocaleDateString("fr-FR", {
       day: "2-digit",
       month: "2-digit",
+      timeZone: "Europe/Paris",
     });
   };
 
   const chartData = {
-    labels: preloadedData.dailyBarStats.map((d) => formatDate(d.day)),
+    labels: preloadedData.dailyBarStats.year.map((d) => formatDate(d.day)),
     datasets: [
       {
         label: "Passages",
-        data: preloadedData.dailyBarStats.map((d) => d.value),
+        data: preloadedData.dailyBarStats.year.map((d) => d.value),
         backgroundColor: "rgba(163, 230, 53, 0.7)",
         borderColor: "#a3e635",
         borderWidth: 1,
         barPercentage: 1.0,
         categoryPercentage: 1.0,
+        type: "bar" as const,
+      },
+      {
+        label: "Moyenne globale",
+        data: Array(preloadedData.dailyBarStats.year.length).fill(
+          preloadedData.dailyBarStats.globalAverage
+        ),
+        type: "line" as const,
+        borderColor: "#3b82f6",
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+        hidden: hiddenDatasets.globalAverage,
+      },
+      {
+        label: "Moyenne jours actifs",
+        data: Array(preloadedData.dailyBarStats.year.length).fill(
+          preloadedData.dailyBarStats.activeDaysAverage
+        ),
+        type: "line" as const,
+        borderColor: "#f59e0b",
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: false,
+        hidden: hiddenDatasets.activeDaysAverage,
       },
     ],
   };
@@ -52,7 +106,9 @@ export default function CounterDailyBarChart({ counter, preloadedData }: Counter
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: false },
+      legend: {
+        display: false,
+      },
       tooltip: { enabled: true },
     },
     scales: {
@@ -63,6 +119,7 @@ export default function CounterDailyBarChart({ counter, preloadedData }: Counter
           font: { size: 10 },
         },
         grid: { display: false },
+        fixed: true,
       },
       y: {
         beginAtZero: true,
@@ -71,19 +128,65 @@ export default function CounterDailyBarChart({ counter, preloadedData }: Counter
           font: { size: 10 },
         },
         grid: { color: "#f1f5f9" },
+        fixed: true,
       },
     },
   };
 
+  const toggleDataset = (datasetKey: string) => {
+    setHiddenDatasets((prev) => ({
+      ...prev,
+      [datasetKey]: !prev[datasetKey],
+    }));
+  };
+
   return (
-    <div className="mb-2">
+    <div className="mb-2 h-full flex flex-col">
       <h4 className="text-sm font-semibold text-gray-900 pl-4">
-        Passages par jour (année en cours)
+        Passages par jour ({currentYear})
       </h4>
-      <div className="h-[calc(35vh)] bg-white p-2 rounded-lg shadow-sm">
-        <div className="overflow-x-auto">
-          <div className="min-w-[1200px]">
-            <Bar data={chartData} options={options} />
+      <div className="flex-1 bg-white p-2 rounded-lg shadow-sm flex flex-col">
+        <div className="flex justify-start mb-2">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => toggleDataset("globalAverage")}
+              className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+            >
+              <div
+                className={`w-3 h-3 rounded-full bg-blue-500 ${
+                  hiddenDatasets.globalAverage ? "opacity-50" : ""
+                }`}
+              ></div>
+              <span
+                className={`text-xs text-gray-600 ${
+                  hiddenDatasets.globalAverage ? "opacity-50" : ""
+                }`}
+              >
+                Moyenne globale
+              </span>
+            </button>
+            <button
+              onClick={() => toggleDataset("activeDaysAverage")}
+              className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+            >
+              <div
+                className={`w-3 h-3 rounded-full bg-orange-500 ${
+                  hiddenDatasets.activeDaysAverage ? "opacity-50" : ""
+                }`}
+              ></div>
+              <span
+                className={`text-xs text-gray-600 ${
+                  hiddenDatasets.activeDaysAverage ? "opacity-50" : ""
+                }`}
+              >
+                Moyenne jours actifs
+              </span>
+            </button>
+          </div>
+        </div>
+        <div className="flex-1">
+          <div className="w-full h-[calc(100%-40px)]">
+            <Chart type="bar" data={chartData} options={options} />
           </div>
         </div>
       </div>

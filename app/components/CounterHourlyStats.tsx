@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { BikeCounter } from "@prisma/client";
 import {
   LineChart,
@@ -12,7 +11,6 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { getHourlyStats } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
 import { PreloadedCounterData } from "../page";
 
@@ -44,7 +42,7 @@ export default function CounterHourlyStats({ counter, preloadedData }: CounterHo
     return new Intl.NumberFormat("fr-FR").format(value);
   };
 
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0];
 
   const hasData = (day: string) => {
     const dayData = preloadedData.hourlyStats[day as keyof typeof preloadedData.hourlyStats];
@@ -67,6 +65,10 @@ export default function CounterHourlyStats({ counter, preloadedData }: CounterHo
 
   const visibleDays = getVisibleDays();
 
+  const formatHour = (hour: number) => {
+    return `${hour.toString().padStart(2, "0")}h`;
+  };
+
   return (
     <div className="space-y-2">
       <h3 className="text-lg font-semibold text-gray-900 pl-4">
@@ -76,16 +78,18 @@ export default function CounterHourlyStats({ counter, preloadedData }: CounterHo
         <div className="h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
-              data={hours.map((hour) => ({
-                hour,
-                ...Object.fromEntries(
-                  visibleDays.map((day) => [
-                    day.key,
-                    preloadedData.hourlyStats[day.key as keyof typeof preloadedData.hourlyStats][hour]
-                      .value,
-                  ])
-                ),
-              }))}
+              data={hours.map((hour) => {
+                return {
+                  hour: hour,
+                  ...Object.fromEntries(
+                    visibleDays.map((day) => [
+                      day.key,
+                      preloadedData.hourlyStats[day.key as keyof typeof preloadedData.hourlyStats][hour]
+                        .value,
+                    ])
+                  ),
+                };
+              })}
               margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -96,6 +100,7 @@ export default function CounterHourlyStats({ counter, preloadedData }: CounterHo
                 tick={{ fill: "#64748b", fontSize: 10 }}
                 domain={[0, 23]}
                 ticks={hours}
+                tickFormatter={formatHour}
               />
               <YAxis
                 tickFormatter={formatValue}

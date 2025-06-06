@@ -1,6 +1,6 @@
 "use server";
 
-import { getGlobalStats } from "@/app/actions/counters";
+import { getGlobalStats } from "@/app/actions/counters/stats";
 import { getDailyStats } from "@/app/actions/dailyStats";
 import NumberFlow from "@/app/components/NumberFlow";
 import StatsBar from "@/app/components/StatsBar";
@@ -51,9 +51,9 @@ export default async function HeroSection() {
                   : "début des mesures"}
               </p>
               <WeatherMessage
-                temperature={dailyStats.weather.today}
-                isRaining={dailyStats.weather.isRaining}
-                isCloudy={dailyStats.weather.isCloudy}
+                temperature={dailyStats.weather.today.temperature}
+                isRaining={dailyStats.weather.today.isRaining}
+                isCloudy={dailyStats.weather.today.isCloudy}
               />
             </div>
             <div className="relative w-24 h-24">
@@ -84,7 +84,7 @@ export default async function HeroSection() {
                 label="Avant-hier"
                 value={dailyStats.passages.dayBeforeYesterday}
                 percentage={dayBeforeYesterdayPercentage}
-                temperature={dailyStats.weather.yesterday}
+                temperature={dailyStats.weather.dayBeforeYesterday.temperature}
                 color="blue"
                 isRaining={false}
                 isCloudy={false}
@@ -93,10 +93,10 @@ export default async function HeroSection() {
                 label="Hier"
                 value={dailyStats.passages.yesterday}
                 percentage={yesterdayPercentage}
-                temperature={dailyStats.weather.today}
+                temperature={dailyStats.weather.yesterday.temperature}
                 color="green"
-                isRaining={dailyStats.weather.isRaining}
-                isCloudy={dailyStats.weather.isCloudy}
+                isRaining={dailyStats.weather.yesterday.isRaining}
+                isCloudy={dailyStats.weather.yesterday.isCloudy}
               />
             </div>
           </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { BikeCounter } from "@prisma/client";
 import {
   LineChart,
@@ -13,7 +12,6 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
-import { getWeeklyStats } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
 import { PreloadedCounterData } from "../page";
 
@@ -24,26 +22,18 @@ interface CounterWeeklyStatsProps {
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
-    const currentWeekData = payload.find(
-      (p: any) => p.name === "Cette semaine"
-    );
-    const lastWeekData = payload.find(
-      (p: any) => p.name === "Semaine dernière"
-    );
-
     return (
       <div className="bg-white p-2 border border-gray-200 rounded shadow-sm">
         <p className="text-sm font-medium text-gray-700">{label}</p>
-        <p className="text-sm text-blue-600">
-          Cette semaine:{" "}
-          {currentWeekData?.value !== null
-            ? currentWeekData?.value
-            : "Aucune donnée"}
-        </p>
-        <p className="text-sm text-green-600">
-          Semaine dernière:{" "}
-          {lastWeekData?.value !== null ? lastWeekData?.value : "Aucune donnée"}
-        </p>
+        {payload.map((entry: any) => (
+          <p
+            key={entry.name}
+            className="text-sm"
+            style={{ color: entry.color }}
+          >
+            {entry.name}: {entry.value !== null ? entry.value : "Aucune donnée"}
+          </p>
+        ))}
       </div>
     );
   }
@@ -57,9 +47,21 @@ export default function CounterWeeklyStats({ counter, preloadedData }: CounterWe
     return new Intl.NumberFormat("fr-FR").format(value);
   };
 
+  const formatDay = (day: string) => {
+    return day;
+  };
+
   const globalAverage = Math.round(
     (preloadedData.weeklyStats.currentWeekAverage + preloadedData.weeklyStats.lastWeekAverage) / 2
   );
+
+  const ensureAllDays = (data: { day: string; value: number | null }[]) => {
+    const allDays = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'];
+    return allDays.map(day => {
+      const existingDay = data.find(d => d.day === day);
+      return existingDay || { day, value: null };
+    });
+  };
 
   return (
     <div className="space-y-2">
@@ -70,7 +72,10 @@ export default function CounterWeeklyStats({ counter, preloadedData }: CounterWe
         <div className="h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
-              data={preloadedData.weeklyStats.currentWeek}
+              data={ensureAllDays(preloadedData.weeklyStats.currentWeek).map(day => ({
+                ...day,
+                day: formatDay(day.day)
+              }))}
               margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -119,7 +124,10 @@ export default function CounterWeeklyStats({ counter, preloadedData }: CounterWe
                 type="monotone"
                 dataKey="value"
                 name="Semaine dernière"
-                data={preloadedData.weeklyStats.lastWeek}
+                data={ensureAllDays(preloadedData.weeklyStats.lastWeek).map(day => ({
+                  ...day,
+                  day: formatDay(day.day)
+                }))}
                 stroke="#22c55e"
                 strokeWidth={2}
                 dot={false}

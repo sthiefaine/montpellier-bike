@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { BikeCounter } from "@prisma/client";
-import { getCounterStats } from "@/app/actions/counters";
 import CounterSkeleton from "./CounterSkeleton";
 import NumberFlow from "./NumberFlow";
 import { PreloadedCounterData } from "../page";
@@ -21,46 +19,51 @@ export default function CounterDailyStats({
   if (!counter || !stats) return <CounterSkeleton />;
 
   const formatTime = (date: Date | null) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleTimeString("fr-FR", {
+    if (!date) return null;
+    if (date.getHours() === 0 && date.getMinutes() === 0) {
+      return "23:59";
+    }
+    const utcDate = new Date(date);
+    return utcDate.toLocaleTimeString("fr-FR", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "Europe/Paris",
     });
   };
 
   const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString("fr-FR", {
+    const utcDate = new Date(date);
+    return utcDate.toLocaleDateString("fr-FR", {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
+      timeZone: "Europe/Paris",
     });
   };
 
   return (
     <div className="space-y-1">
-      <h3 className="text-lg font-semibold text-gray-900">
-        Statistiques
-      </h3>
+      <h3 className="text-lg font-semibold text-gray-900">Statistiques</h3>
       <div className="bg-green-50 p-1 rounded-lg h-[60px]">
-        <p className="text-sm font-medium text-green-900 mb-1">Hier</p>
+        <p className="text-sm font-medium text-green-900 mb-1">Avant-hier</p>
         <div className="flex flex-row items-center gap-2 justify-between">
           <p className="text-base font-semibold text-green-700">
-            {<NumberFlow value={stats.yesterday} />} passages
+            {<NumberFlow value={stats.beforeYesterday} />} passages
           </p>
           <span className="text-base text-right text-green-500 first-letter:uppercase">
-            {formatTime(stats.lastPassageYesterday)}
-            </span>
+            {formatTime(stats.lastPassageBeforeYesterday)}
+          </span>
         </div>
       </div>
       <div className="bg-blue-50 p-1 rounded-lg h-[60px]">
-        <p className="text-sm font-medium text-blue-900 mb-1">Aujourd'hui</p>
+        <p className="text-sm font-medium text-blue-900 mb-1">Hier</p>
         <div className="flex flex-row items-center gap-2 justify-between">
           <p className="text-base font-semibold text-blue-700">
-            {<NumberFlow value={stats.today} />} passages
+            {<NumberFlow value={stats.yesterday} />} passages
           </p>
           <span className="text-base text-right text-blue-500 first-letter:uppercase">
-            {formatTime(stats.lastPassageToday)}
+            {formatTime(stats.lastPassageYesterday)}
           </span>
         </div>
       </div>
@@ -81,7 +84,7 @@ export default function CounterDailyStats({
             <p className="text-base font-semibold text-orange-700">
               {<NumberFlow value={stats.maxDay.value} />}
             </p>
-            <span className="text-base text-orange-500 first-letter:uppercase">
+            <span className="text-xs text-orange-500 first-letter:uppercase">
               {formatDate(stats.maxDay.date)}
             </span>
           </div>

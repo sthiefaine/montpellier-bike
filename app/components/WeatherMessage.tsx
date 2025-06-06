@@ -28,7 +28,7 @@ export default async function WeatherMessage({
       if (temperature < 15) {
         return randomPick([
           "🌧️ C'est humide et un peu frais aujourd'hui. Un imperméable sera votre meilleur allié.",
-          "🌧️ Quelques gouttes et une petite fraîcheur. Pensez à votre K-way pour vos déplacements doux !",
+          "🌧️ Quelques gouttes et une petite fraîcheur. Pensez à votre K-way pour vos déplacements !",
           "🌧️ Pluie légère et fraîcheur à Montpellier. Les transports en commun sont prêts à vous accueillir !"
         ]);
       }
@@ -63,7 +63,7 @@ export default async function WeatherMessage({
       }
       return randomPick([
         "🌥️ Malgré quelques nuages, il fait chaud aujourd'hui. Hydratez-vous bien pendant vos trajets.",
-        "🌥️ Ciel voilé et chaleur à Montpellier. Pensez à votre gourde pour vos déplacements doux !",
+        "🌥️ Ciel voilé et chaleur à Montpellier. Pensez à votre gourde pour vos déplacements !",
         "🌥️ Nuages et chaleur. Les pistes cyclables sont prêtes, n'oubliez pas de vous hydrater !"
       ]);
     }
@@ -71,7 +71,7 @@ export default async function WeatherMessage({
     if (temperature < 10) {
       return randomPick([
         "🌤️ Grand ciel bleu mais températures basses. Couvrons-nous bien pour rester actifs dehors !",
-        "🌤️ Beau temps mais frais à Montpellier. Une petite laine s'impose pour vos trajets doux !",
+        "🌤️ Beau temps mais frais à Montpellier. Une petite laine s'impose pour vos trajets !",
         "🌤️ Ciel dégagé et fraîcheur. Les pistes cyclables vous attendent, bien couverts !"
       ]);
     }
@@ -85,17 +85,25 @@ export default async function WeatherMessage({
     if (temperature < 25) {
       return randomPick([
         "☀️ Il fait chaud ! Évitez les heures de pointe pour vos trajets à pied ou en deux roues.",
-        "☀️ Belle chaleur à Montpellier. Pensez à votre gourde pour vos déplacements doux !",
+        "☀️ Belle chaleur à Montpellier. Pensez à votre gourde pour vos déplacements !",
         "☀️ Temps chaud et ensoleillé. Les pistes cyclables vous attendent, n'oubliez pas de vous hydrater !"
       ]);
     }
     if (temperature < 30) {
       return randomPick([
         "🔥 Chaleur intense aujourd'hui. Si possible, restez à l'ombre et déplacez-vous tôt ou tard.",
-        "🔥 Il fait très chaud à Montpellier. Privilégiez les trajets à l'ombre ou en tramway !",
-        "🔥 Forte chaleur. Les pistes cyclables attendront les heures plus fraîches !"
+        "🔥 Il fait très chaud à Montpellier. Privilégiez les trajets à l'ombre",
+        "🔥 Forte chaleur. Pensez à vous hydrater et à faire des pauses !"
       ]);
     }
+    if (temperature < 35) {
+      return randomPick([
+        "🔥 Il fait chaud ! Évitez les heures de pointe pour vos trajets à pied ou en deux roues.",
+        "🔥 Il fait très chaud à Montpellier. Privilégiez les trajets à l'ombre ou en tramway !",
+        "🔥 Forte chaleur. Pensez à vous hydrater et à faire des pauses !"
+      ]);
+    }
+
     return randomPick([
       "🔥 Canicule aujourd'hui. Les transports en commun seront plus confortables !",
       "🔥 Chaleur extrême à Montpellier. Pensez à prendre le tramway qui est climatisé !",

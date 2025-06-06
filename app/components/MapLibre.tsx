@@ -18,12 +18,11 @@ interface MapLibreProps {
     lat: number;
     lng: number;
   };
-  counters?: BikeCounter[];
+  counters?: (BikeCounter & { isActive: boolean })[];
   onMapReady?: () => void;
   weatherCircles?: WeatherCircle[];
   onCounterSelect?: (counter: BikeCounter | null) => void;
   defaultSelectedCounter?: BikeCounter | null;
-  preloadedData?: Set<string>;
 }
 
 const bounds: maplibregl.LngLatBoundsLike = [
@@ -108,7 +107,6 @@ export default function MapLibre({
   weatherCircles,
   onCounterSelect,
   defaultSelectedCounter,
-  preloadedData,
 }: MapLibreProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -117,16 +115,14 @@ export default function MapLibre({
   const [selectedCounter, setSelectedCounter] = useState<BikeCounter | null>(
     defaultSelectedCounter || null
   );
-  const activeCounters = preloadedData || new Set();
 
   useEffect(() => {
-    console.log("activeCounters", selectedCounter);
     if (!mapContainer.current) return;
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: mapStyle,
       center: [coordinates.lng, coordinates.lat],
-      zoom: 10,
+      zoom: 8,
       maxBounds: bounds,
       maxZoom: 18,
       attributionControl: false
@@ -178,7 +174,70 @@ export default function MapLibre({
         map.current.remove();
       }
     };
-  }, [coordinates, mapStyle, onMapReady, weatherCircles]);
+  }, [ mapStyle, onMapReady, weatherCircles]);
+
+  useEffect(() => {
+    if (!counters || !map.current) return;
+
+    // Supprimer tous les marqueurs existants
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
+
+    // Créer les nouveaux marqueurs
+    counters.forEach((counter) => {
+      const isActive = counter.isActive;
+      const el = document.createElement("div");
+      el.className = "marker";
+      el.setAttribute('data-counter-id', counter.id);
+      el.style.width = "20px";
+      el.style.height = "20px";
+      el.style.backgroundColor = selectedCounter?.id === counter.id
+        ? "#3B82F6"
+        : isActive
+        ? "#22C55E"
+        : "#EF4444";
+      el.style.borderRadius = "50%";
+      el.style.border = "2px solid white";
+      el.style.boxShadow = "0 0 4px rgba(0,0,0,0.3)";
+
+      const marker = new maplibregl.Marker({
+        element: el,
+        anchor: "center",
+      })
+        .setLngLat([counter.longitude, counter.latitude])
+        .addTo(map.current!);
+
+      marker.getElement().addEventListener("click", () => {
+        setSelectedCounter(counter);
+        onCounterSelect?.(counter);
+        map.current?.flyTo({
+          center: [counter.longitude, counter.latitude],
+          zoom: 13,
+          duration: 1000,
+        });
+      });
+
+      markersRef.current.push(marker);
+    });
+  }, [counters]);
+
+  useEffect(() => {
+    if (!map.current) return;
+    
+    markersRef.current.forEach((marker) => {
+      const counterId = marker.getElement().getAttribute('data-counter-id');
+      const counter = counters?.find(c => c.id === counterId);
+      if (counter) {
+        const isActive = counter.isActive;
+        const el = marker.getElement();
+        el.style.backgroundColor = selectedCounter?.id === counter.id
+          ? "#3B82F6"
+          : isActive
+          ? "#22C55E"
+          : "#EF4444";
+      }
+    });
+  }, [selectedCounter, counters]);
 
   useEffect(() => {
     if (!userLocation || !map.current) return;
@@ -202,57 +261,6 @@ export default function MapLibre({
     };
   }, [userLocation]);
 
-  useEffect(() => {
-    if (!counters || !map.current) return;
-
-    markersRef.current.forEach((marker) => marker.remove());
-    markersRef.current = [];
-
-    counters.forEach((counter) => {
-      const isActive = activeCounters.has(counter.id);
-
-      const el = document.createElement("div");
-      el.className = "marker";
-      el.setAttribute('data-counter-id', counter.id);
-      el.style.width = "20px";
-      el.style.height = "20px";
-      el.style.backgroundColor =
-        selectedCounter?.id === counter.id
-          ? "#3B82F6"
-          : isActive
-          ? "#22C55E"
-          : "#EF4444";
-      el.style.borderRadius = "50%";
-      el.style.border = "2px solid white";
-      el.style.boxShadow = "0 0 4px rgba(0,0,0,0.3)";
-
-      const marker = new maplibregl.Marker({
-        element: el,
-        anchor: "center",
-      })
-        .setLngLat([counter.longitude, counter.latitude])
-        .setPopup(
-          new maplibregl.Popup({
-            offset: 10,
-            closeButton: false,
-            closeOnClick: false,
-          }).setHTML(`
-            <h3 class="font-bold text-black">${counter.name}</h3>
-            <p class="text-black">Numéro de série: ${counter.serialNumber}</p>
-            <p class="text-black">Statut: ${isActive ? "Actif" : "Inactif"}</p>
-          `)
-        )
-        .addTo(map.current!);
-
-      marker.getElement().addEventListener("click", () => {
-        setSelectedCounter(counter);
-        onCounterSelect?.(counter);
-      });
-
-      markersRef.current.push(marker);
-    });
-  }, [counters, selectedCounter, activeCounters, onCounterSelect]);
-
   return (
     <div className="relative w-full h-full">
       {isLoading && (
@@ -261,6 +269,43 @@ export default function MapLibre({
         </div>
       )}
       <div ref={mapContainer} className="w-full h-full" />
+      <div className="absolute bottom-4 right-4 flex flex-col gap-1">
+        <button
+          onClick={() => map.current?.zoomIn({ duration: 300 })}
+          className="bg-white p-1.5 rounded-lg shadow-lg hover:bg-gray-50 transition-colors text-black"
+          title="Zoom +"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        <button
+          onClick={() => map.current?.zoomOut({ duration: 300 })}
+          className="bg-white p-1.5 rounded-lg shadow-lg hover:bg-gray-50 transition-colors text-black"
+          title="Zoom -"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </button>
+        <button
+          onClick={() => {
+            map.current?.flyTo({
+              center: [coordinates.lng, coordinates.lat],
+              zoom: 8,
+              duration: 1000,
+            });
+          }}
+          className="bg-white p-1.5 rounded-lg shadow-lg hover:bg-gray-50 transition-colors text-black"
+          title="Réinitialiser la vue"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+            <path d="M3 3v5h5"></path>
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

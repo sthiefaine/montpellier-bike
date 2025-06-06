@@ -2,17 +2,21 @@
 
 import { prisma } from "@/lib/prisma";
 
+export type Weather = {
+  isRaining: boolean;
+  isCloudy: boolean;
+  temperature: number | null;
+};
+
 export type DailyStats = {
   passages: {
     dayBeforeYesterday: number;
     yesterday: number;
-    today: number;
   };
   weather: {
-    yesterday: number | null;
-    today: number | null;
-    isRaining: boolean;
-    isCloudy: boolean;
+    dayBeforeYesterday: Weather;
+    yesterday: Weather;
+    today: Weather;
   };
 };
 
@@ -21,22 +25,34 @@ export async function getDailyStats(): Promise<DailyStats> {
   const today = new Date(new Date().toLocaleString("en-US", { timeZone }));
   today.setHours(0, 0, 0, 0);
 
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-
   const dayBeforeYesterday = new Date(today);
   dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
+  dayBeforeYesterday.setHours(1, 0, 0, 0);
+
+  const dayBeforeYesterdayEnd = new Date(today);
+  dayBeforeYesterdayEnd.setDate(dayBeforeYesterdayEnd.getDate() - 1);
+  dayBeforeYesterdayEnd.setHours(0, 0, 0, 0);
+
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  yesterday.setHours(1, 0, 0, 0);
+
+  const yesterdayEnd = new Date(today);
+  yesterdayEnd.setDate(yesterdayEnd.getDate());
+  yesterdayEnd.setHours(0, 0, 0, 0);
 
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+
 
   // Statistiques des passages
-  const [dayBeforeYesterdayStats, yesterdayStats, todayStats] = await Promise.all([
+  const [dayBeforeYesterdayStats, yesterdayStats] = await Promise.all([
     prisma.counterTimeseries.aggregate({
       where: {
         date: {
           gte: dayBeforeYesterday,
-          lt: yesterday,
+          lte: dayBeforeYesterdayEnd,
         },
       },
       _sum: {
@@ -47,18 +63,7 @@ export async function getDailyStats(): Promise<DailyStats> {
       where: {
         date: {
           gte: yesterday,
-          lt: today,
-        },
-      },
-      _sum: {
-        value: true,
-      },
-    }),
-    prisma.counterTimeseries.aggregate({
-      where: {
-        date: {
-          gte: today,
-          lt: tomorrow,
+          lte: today,
         },
       },
       _sum: {
@@ -67,12 +72,13 @@ export async function getDailyStats(): Promise<DailyStats> {
     }),
   ]);
 
-  // Récupération des données météo pour aujourd'hui
+  // Récupération des données météo
+
   const todayWeather = await prisma.weatherTimeseries.findMany({
     where: {
       date: {
         gte: today,
-        lt: tomorrow,
+        lte: tomorrow,
       },
       type: "hourly",
     },
@@ -84,54 +90,66 @@ export async function getDailyStats(): Promise<DailyStats> {
     },
   });
 
-  // Récupération des données météo pour hier
-  const yesterdayWeather = await prisma.weatherTimeseries.findMany({
+  const dayBeforeYesterdayWeather = await prisma.weatherTimeseries.findMany({
     where: {
       date: {
-        gte: yesterday,
-        lt: today,
+        gte: dayBeforeYesterday,
+        lte: dayBeforeYesterdayEnd,
       },
       type: "hourly",
     },
     select: {
       temperature2m: true,
+      rain: true,
+      weatherCode: true,
+      cloudCover: true,
     },
   });
 
-  // Calcul des températures maximales
-  const yesterdayMaxTemp = yesterdayWeather
-    .map((w) => w.temperature2m)
-    .filter((temp): temp is number => temp !== null)
-    .reduce((max, temp) => Math.max(max, temp), -100);
+  const yesterdayWeather = await prisma.weatherTimeseries.findMany({
+    where: {
+      date: {
+        gte: yesterday,
+        lt: yesterdayEnd,
+      },
+      type: "hourly",
+    },
+    select: {
+      temperature2m: true,
+      rain: true,
+      weatherCode: true,
+      cloudCover: true,
+    },
+  });
 
-  const todayMaxTemp = todayWeather
-    .map((w) => w.temperature2m)
-    .filter((temp): temp is number => temp !== null)
-    .reduce((max, temp) => Math.max(max, temp), -100);
-
-  // Vérification de la pluie pour aujourd'hui
-  const isRaining = todayWeather.some(w => 
-    w.rain && w.rain > 0 || 
-    (w.weatherCode && [61, 63, 65, 80, 81, 82].includes(w.weatherCode))
-  );
-
-  // Vérification du ciel couvert pour aujourd'hui
-  const isCloudy = todayWeather.some(w => 
-    w.cloudCover && w.cloudCover > 80 || 
-    (w.weatherCode && [1, 2, 3].includes(w.weatherCode))
-  );
+  const maxTemp = (weather: { temperature2m: number | null }[]) => {
+    return weather
+      .map((w) => w.temperature2m)
+      .filter((temp): temp is number => temp !== null)
+      .reduce((max, temp) => Math.max(max, temp), -100);
+  };
 
   return {
     passages: {
       dayBeforeYesterday: Number(dayBeforeYesterdayStats._sum?.value || 0),
       yesterday: Number(yesterdayStats._sum?.value || 0),
-      today: Number(todayStats._sum?.value || 0),
     },
     weather: {
-      yesterday: yesterdayMaxTemp === -100 ? null : yesterdayMaxTemp,
-      today: todayMaxTemp === -100 ? null : todayMaxTemp,
-      isRaining,
-      isCloudy,
+      dayBeforeYesterday: {
+        temperature: maxTemp(dayBeforeYesterdayWeather),
+        isRaining: dayBeforeYesterdayWeather.some(w => w.rain && w.rain > 0),
+        isCloudy: dayBeforeYesterdayWeather.some(w => w.cloudCover && w.cloudCover > 80),
+      },
+      yesterday: {
+        temperature: maxTemp(yesterdayWeather),
+        isRaining: yesterdayWeather.some(w => w.rain && w.rain > 0),
+        isCloudy: yesterdayWeather.some(w => w.cloudCover && w.cloudCover > 80),
+      },
+      today: {
+        temperature: maxTemp(todayWeather),
+        isRaining: todayWeather.some(w => w.rain && w.rain > 0),
+        isCloudy: todayWeather.some(w => w.cloudCover && w.cloudCover > 80),
+      },
     },
   };
 }
