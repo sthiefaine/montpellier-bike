@@ -15,7 +15,7 @@ export default function CounterDailyStats({
   preloadedData,
 }: CounterDailyStatsProps) {
   const stats = preloadedData?.counterStats;
-  console.log(stats);
+  console.log("DEBUG stats", stats?.debug);
 
   if (!counter || !stats) return <CounterSkeleton />;
 
