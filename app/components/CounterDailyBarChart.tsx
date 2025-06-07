@@ -47,6 +47,8 @@ export default function CounterDailyBarChart({
     globalAverage: true,
     activeDaysAverage: false,
   });
+  const [hideZeroDays, setHideZeroDays] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     setHiddenDatasets((prev) => ({
@@ -71,12 +73,16 @@ export default function CounterDailyBarChart({
     return <CounterSkeleton />;
   }
 
+  const filteredData = hideZeroDays
+    ? preloadedData.dailyBarStats.year.filter(d => d.value > 0)
+    : preloadedData.dailyBarStats.year;
+
   const chartData: ChartData = {
-    labels: preloadedData.dailyBarStats.year.map((d) => formatDate(d.day)),
+    labels: filteredData.map((d) => formatDate(d.day)),
     datasets: [
       {
         label: "Passages",
-        data: preloadedData.dailyBarStats.year.map((d) => d.value),
+        data: filteredData.map((d) => d.value),
         backgroundColor: "rgba(163, 230, 53, 0.7)",
         borderColor: "#a3e635",
         borderWidth: 1,
@@ -86,7 +92,7 @@ export default function CounterDailyBarChart({
       },
       {
         label: "Moyenne globale",
-        data: Array(preloadedData.dailyBarStats.year.length).fill(
+        data: Array(filteredData.length).fill(
           preloadedData.dailyBarStats.globalAverage
         ),
         type: "line",
@@ -98,7 +104,7 @@ export default function CounterDailyBarChart({
       },
       {
         label: "Moyenne jours actifs",
-        data: Array(preloadedData.dailyBarStats.year.length).fill(
+        data: Array(filteredData.length).fill(
           preloadedData.dailyBarStats.activeDaysAverage
         ),
         type: "line",
@@ -149,48 +155,111 @@ export default function CounterDailyBarChart({
     }));
   };
 
+  const LegendButton = ({ 
+    onClick, 
+    color, 
+    label, 
+    isHidden 
+  }: { 
+    onClick: () => void; 
+    color: string; 
+    label: string; 
+    isHidden: boolean;
+  }) => (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2 hover:opacity-70 transition-opacity"
+    >
+      <div
+        className={`w-3 h-3 rounded-full ${color} ${
+          isHidden ? "opacity-50" : ""
+        }`}
+      ></div>
+      <span
+        className={`text-xs text-gray-600 ${
+          isHidden ? "opacity-50" : ""
+        }`}
+      >
+        {label}
+      </span>
+    </button>
+  );
+
   return (
     <div className="mb-2 h-full flex flex-col">
       <h4 className="text-sm font-semibold text-gray-900 pl-4">
         Passages par jour ({currentYear})
       </h4>
       <div className="flex-1 bg-white p-2 rounded-lg shadow-sm flex flex-col">
-        <div className="flex justify-start mb-2">
+        <div className="flex flex-col sm:flex-row justify-start mb-2">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => toggleDataset("globalAverage")}
-              className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-            >
-              <div
-                className={`w-3 h-3 rounded-full bg-blue-500 ${
-                  hiddenDatasets.globalAverage ? "opacity-50" : ""
-                }`}
-              ></div>
-              <span
-                className={`text-xs text-gray-600 ${
-                  hiddenDatasets.globalAverage ? "opacity-50" : ""
-                }`}
+            <div className="hidden sm:flex items-center gap-4">
+              <LegendButton
+                onClick={() => toggleDataset("globalAverage")}
+                color="bg-blue-500"
+                label="Moyenne globale"
+                isHidden={hiddenDatasets.globalAverage}
+              />
+              <LegendButton
+                onClick={() => toggleDataset("activeDaysAverage")}
+                color="bg-orange-500"
+                label="Moyenne jours actifs"
+                isHidden={hiddenDatasets.activeDaysAverage}
+              />
+              <LegendButton
+                onClick={() => setHideZeroDays(!hideZeroDays)}
+                color="bg-gray-500"
+                label={hideZeroDays ? "Tous les jours" : "Jours sans passages"}
+                isHidden={!hideZeroDays}
+              />
+            </div>
+            <div className="sm:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="flex items-center gap-2 text-xs text-gray-600"
               >
-                Moyenne globale
-              </span>
-            </button>
-            <button
-              onClick={() => toggleDataset("activeDaysAverage")}
-              className="flex items-center gap-2 hover:opacity-70 transition-opacity"
-            >
-              <div
-                className={`w-3 h-3 rounded-full bg-orange-500 ${
-                  hiddenDatasets.activeDaysAverage ? "opacity-50" : ""
-                }`}
-              ></div>
-              <span
-                className={`text-xs text-gray-600 ${
-                  hiddenDatasets.activeDaysAverage ? "opacity-50" : ""
-                }`}
-              >
-                Moyenne jours actifs
-              </span>
-            </button>
+                <span>Options</span>
+                <svg
+                  className={`w-4 h-4 transition-transform ${
+                    isMenuOpen ? "rotate-180" : ""
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 9l-7 7-7-7"
+                  />
+                </svg>
+              </button>
+              {isMenuOpen && (
+                <div className="absolute mt-2 bg-white rounded-lg shadow-lg p-2 z-10">
+                  <div className="flex flex-col gap-2">
+                    <LegendButton
+                      onClick={() => toggleDataset("globalAverage")}
+                      color="bg-blue-500"
+                      label="Moyenne globale"
+                      isHidden={hiddenDatasets.globalAverage}
+                    />
+                    <LegendButton
+                      onClick={() => toggleDataset("activeDaysAverage")}
+                      color="bg-orange-500"
+                      label="Moyenne jours actifs"
+                      isHidden={hiddenDatasets.activeDaysAverage}
+                    />
+                    <LegendButton
+                      onClick={() => setHideZeroDays(!hideZeroDays)}
+                      color="bg-gray-500"
+                      label={hideZeroDays ? "Tous les jours" : "Jours sans passages"}
+                      isHidden={!hideZeroDays}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex-1">

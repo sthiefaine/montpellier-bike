@@ -20,6 +20,10 @@ import { getDailyStatsForYear } from "@/app/actions/counters/daily";
 export interface PreloadedCounterData {
   counterId: string;
   counterStats: {
+    debug?: {
+      now: Date;
+
+    };
     maxDay: { date: Date; value: number } | null;
     beforeYesterday: number;
     yesterday: number;

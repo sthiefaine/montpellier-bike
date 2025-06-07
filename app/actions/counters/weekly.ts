@@ -1,56 +1,49 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getStartOfWeek, getEndOfWeek, getStartOfDay } from "./dateHelpers";
 
 export async function getWeeklyStats(counterId: string) {
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = now;
 
-  const endOfToday = new Date(today);
-  endOfToday.setDate(today.getDate() + 1);
-  endOfToday.setHours(0, 0, 0, 0);
-
-  const startOfWeek = new Date(today);
-  const dayOfWeek = today.getDay();
-  const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  startOfWeek.setDate(today.getDate() - diff);
-  startOfWeek.setHours(1, 0, 0, 0);
+  const startOfWeek = getStartOfWeek(today);
+  const endOfWeek = getEndOfWeek(today);
 
   const startOfLastWeek = new Date(startOfWeek);
   startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
-  startOfLastWeek.setHours(1, 0, 0, 0);
 
-  const endOfLastWeek = new Date(startOfWeek);
-  endOfLastWeek.setHours(0, 0, 0, 0);
+  const endOfLastWeek = new Date(endOfWeek);
+  endOfLastWeek.setDate(endOfLastWeek.getDate() - 7);
 
   const [currentWeekStats, lastWeekStats] = await Promise.all([
-    prisma.$queryRaw<{ day: string; total: bigint }[]>(
+    prisma.$queryRaw<{ day: string; total: number }[]>(
       Prisma.sql`
         WITH daily_stats AS (
           SELECT 
-            (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris' - interval '1 hour'))::text as day,
-            SUM(value)::bigint as total
+            (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::text as day,
+            SUM(value)::integer as total
           FROM "CounterTimeseries"
           WHERE "counterId" = ${counterId}
             AND date >= ${startOfWeek}
-            AND date <= ${endOfToday}
-          GROUP BY (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris' - interval '1 hour'))
+            AND date <= ${endOfWeek}
+          GROUP BY (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))
         )
         SELECT day, total
         FROM daily_stats
         ORDER BY day ASC
       `
     ),
-    prisma.$queryRaw<{ day: string; total: bigint }[]>(
+    prisma.$queryRaw<{ day: string; total: number }[]>(
       Prisma.sql`
         WITH daily_stats AS (
           SELECT 
-            (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris' - interval '1 hour'))::text as day,
-            SUM(value)::bigint as total
+            (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::text as day,
+            SUM(value)::integer as total
           FROM "CounterTimeseries"
           WHERE "counterId" = ${counterId}
             AND date >= ${startOfLastWeek}
-            AND date <= ${startOfWeek}
-          GROUP BY (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris' - interval '1 hour'))
+            AND date <= ${endOfLastWeek}
+          GROUP BY (DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))
         )
         SELECT day, total
         FROM daily_stats
@@ -60,7 +53,7 @@ export async function getWeeklyStats(counterId: string) {
   ]);
 
   const formatWeeklyData = (
-    stats: { day: string; total: bigint }[],
+    stats: { day: string; total: number }[],
     isCurrentWeek: boolean = false
   ) => {
     const weeklyData = [
@@ -78,7 +71,6 @@ export async function getWeeklyStats(counterId: string) {
       const dayOfWeek = date.getDay();
       const index = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
 
-      // Si c'est la semaine en cours, on ne prend pas les jours après aujourd'hui
       if (isCurrentWeek) {
         const todayDayOfWeek = today.getDay();
         const todayIndex = todayDayOfWeek === 0 ? 6 : todayDayOfWeek - 1;
@@ -87,7 +79,7 @@ export async function getWeeklyStats(counterId: string) {
         }
       }
 
-      const value = Number(stat.total);
+      const value = stat.total;
 
       if (weeklyData[index].value !== null && value !== null) {
         weeklyData[index].value = weeklyData[index].value! + value;
@@ -118,7 +110,6 @@ export async function getWeeklyStats(counterId: string) {
   const lastWeekAverage = calculateAverage(lastWeekData);
   const globalAverage = Math.round((currentWeekAverage + lastWeekAverage) / 2);
 
-  // On retire le jour en cours pour ne pas avoir de données manquantes
   const filteredCurrentWeekData = currentWeekData.filter(
     (day) =>
       day.day !==

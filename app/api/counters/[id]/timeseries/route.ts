@@ -1,35 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getStartOfDay, getEndOfDay, getParisTimezoneOffset } from "@/app/actions/counters/dateHelpers";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const searchParams = request.nextUrl?.searchParams;
-  const fromDate = searchParams?.get("fromDate") || "2025-06-05";
-  const toDate = searchParams?.get("toDate") || "2025-06-05";
-  const numero_serie = (await params).id || "ED223110494";
-  const timeZone = "Europe/Paris";
+  const fromDate = searchParams?.get("fromDate") || "2025-06-07";
+  const toDate = searchParams?.get("toDate") || "2025-06-07";
+  const numero_serie = (await params).id || "X2H21070351";
 
-  // Pour la base de données : on commence à 1h et on termine à 0h de la journée suivante
-  const startDate = new Date(fromDate);
-  startDate.setUTCHours(1, 0, 0, 0);
+  // Pour la base de données, on utilise les helpers
+  const startDate = getStartOfDay(new Date(fromDate));
+  const endDate = getEndOfDay(new Date(toDate));
 
-  const endDate = new Date(toDate);
-  endDate.setUTCDate(endDate.getUTCDate() + 1);
-  endDate.setUTCHours(0, 0, 0, 0);
-
-  // Pour l'API OpenData : on commence à 22h et on termine à 23h en heure de Paris
+  // Pour OpenData, on garde la logique spécifique avec les offsets
   const openDataStartDate = new Date(fromDate);
-  openDataStartDate.setUTCDate(openDataStartDate.getUTCDate() - 1);
-  openDataStartDate.setUTCHours(23, 0, 0, 0);
+  const openDataStartDateParis = getStartOfDay(openDataStartDate);
 
   const openDataEndDate = new Date(toDate);
-  openDataEndDate.setUTCHours(22, 0, 0, 0);
+  const openDataEndDateParis = getEndOfDay(openDataEndDate);
 
-  const openDataStartDateISO = openDataStartDate.toISOString();
-  const openDataEndDateISO = openDataEndDate.toISOString();
+  const openDataStartDateISO = openDataStartDateParis.toISOString();
+  const openDataEndDateISO = openDataEndDateParis.toISOString();
 
   const counter = await prisma.bikeCounter.findFirst({
     where: {
@@ -47,8 +42,8 @@ export async function GET(
         value
       FROM "CounterTimeseries"
       WHERE "serialNumber" = ${numero_serie}
-        AND date >= ${startDate} AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'
-        AND date <= ${endDate} AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'
+        AND date >= ${startDate}
+        AND date <= ${endDate}
       ORDER BY date ASC
     `
   );
@@ -76,6 +71,7 @@ export async function GET(
   }
 
   const response = {
+
     somme: timeseries.reduce((acc, ts) => acc + ts.value, 0),
     name: counter?.name,
     attrName: "intensity",
@@ -85,7 +81,15 @@ export async function GET(
     values: timeseries.map((ts) => ts.value),
     openDataIndex: openDataValues.index,
     openDataValues: openDataValues.values,
-    openDataSomme
+    openDataSomme,
+    debug: {
+      startDate,
+      endDate,
+      openDataStartDateParis,
+      openDataEndDateParis,
+      openDataStartDateISO,
+      openDataEndDateISO,
+    }
   };
 
   return NextResponse.json(response);

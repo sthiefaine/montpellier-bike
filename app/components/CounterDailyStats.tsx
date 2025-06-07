@@ -15,29 +15,29 @@ export default function CounterDailyStats({
   preloadedData,
 }: CounterDailyStatsProps) {
   const stats = preloadedData?.counterStats;
-  console.log(stats);
+  console.log("DEBUG stats", stats);
 
   if (!counter || !stats) return <CounterSkeleton />;
 
   const formatTime = (date: Date | null) => {
     if (!date) return null;
 
-    const utcDate = new Date(date);
-    const time = utcDate.toLocaleTimeString("fr-FR", {
+    const newDate = new Date(date);
+    const time = newDate.toLocaleTimeString("fr-FR", {
       hour: "2-digit",
       minute: "2-digit",
       timeZone: "Europe/Paris",
     });
 
-    if (time === "00:00") {
+    if (time === "23:00") {
       return "23:59";
     }
     return time;
   };
 
   const formatDate = (date: Date) => {
-    const utcDate = new Date(date);
-    return utcDate.toLocaleDateString("fr-FR", {
+    const newDate = new Date(date);
+    return newDate.toLocaleDateString("fr-FR", {
       weekday: "long",
       day: "numeric",
       month: "long",

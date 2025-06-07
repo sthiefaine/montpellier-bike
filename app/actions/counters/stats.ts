@@ -1,26 +1,17 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import {
+  getBeforeYesterdayBoundsParis,
+  getHoursOfDay,
+  getYesterdayBoundsParis,
+} from "./dateHelpers";
 
 export async function getCounterStats(counterId: string) {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const now = new Date(); // Date UTC actuelle
 
-  // Pour avant-hier
-  const startOfBeforeYesterday = new Date(today);
-  startOfBeforeYesterday.setDate(startOfBeforeYesterday.getDate() - 2);
-  startOfBeforeYesterday.setHours(1, 0, 0, 0);
-
-  const endOfBeforeYesterday = new Date(today);
-  endOfBeforeYesterday.setDate(endOfBeforeYesterday.getDate() - 1);
-  endOfBeforeYesterday.setHours(0, 0, 0, 0);
-
-  // Pour hier
-  const startOfYesterday = new Date(today);
-  startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-  startOfYesterday.setHours(1, 0, 0, 0);
-
-  const endOfYesterday = new Date(today);
-  endOfYesterday.setHours(0, 0, 0, 0);
+  // Calcul des plages pour avant-hier et hier en heure de Paris
+  const beforeYesterdayBounds = getBeforeYesterdayBoundsParis(now);
+  const yesterdayBounds = getYesterdayBoundsParis(now);
 
   const [
     beforeYesterdayStats,
@@ -31,38 +22,22 @@ export async function getCounterStats(counterId: string) {
     lastPassageYesterday,
     totalPassages,
   ] = await Promise.all([
-    // Before yesterday
-    prisma.$queryRaw<{ total: bigint }[]>(
+    prisma.$queryRaw<{ total: number }[]>(
       Prisma.sql`
-        WITH hourly_stats AS (
-          SELECT 
-            EXTRACT(HOUR FROM date)::integer as hour,
-            SUM(value)::bigint as total
-          FROM "CounterTimeseries"
-          WHERE "counterId" = ${counterId}
-            AND date >= ${startOfBeforeYesterday}
-            AND date <= ${endOfBeforeYesterday}
-          GROUP BY hour
-        )
-        SELECT COALESCE(SUM(total), 0) as total
-        FROM hourly_stats
+        SELECT COALESCE(SUM(value), 0)::integer as total
+        FROM "CounterTimeseries"
+        WHERE "counterId" = ${counterId}
+          AND date >= ${beforeYesterdayBounds.start}
+          AND date <= ${beforeYesterdayBounds.end}
       `
     ),
-    // Yesterday
-    prisma.$queryRaw<{ total: bigint }[]>(
+    prisma.$queryRaw<{ total: number }[]>(
       Prisma.sql`
-        WITH hourly_stats AS (
-          SELECT 
-            EXTRACT(HOUR FROM date)::integer as hour,
-            SUM(value)::bigint as total
-          FROM "CounterTimeseries"
-          WHERE "counterId" = ${counterId}
-            AND date >= ${startOfYesterday}
-            AND date <= ${endOfYesterday}
-          GROUP BY hour
-        )
-        SELECT COALESCE(SUM(total), 0)::bigint as total
-        FROM hourly_stats
+        SELECT COALESCE(SUM(value), 0)::integer as total
+        FROM "CounterTimeseries"
+        WHERE "counterId" = ${counterId}
+          AND date >= ${yesterdayBounds.start}
+          AND date <= ${yesterdayBounds.end}
       `
     ),
     // First passage
@@ -84,29 +59,32 @@ export async function getCounterStats(counterId: string) {
       },
     }),
     // Last passage before yesterday
-    prisma.$queryRaw<{ date: Date }[]>(
-      Prisma.sql`
-        SELECT date as date
-        FROM "CounterTimeseries"
-        WHERE "counterId" = ${counterId}
-          AND date >= ${startOfBeforeYesterday}
-          AND date <= ${endOfBeforeYesterday}
-        ORDER BY date DESC
-        LIMIT 1
-      `
-    ),
+    prisma.counterTimeseries.findFirst({
+      where: {
+        counterId,
+        date: {
+          gte: beforeYesterdayBounds.start,
+          lte: beforeYesterdayBounds.end,
+        },
+      },
+      orderBy: {
+        date: "desc",
+      },
+    }),
     // Last passage yesterday
-    prisma.$queryRaw<{ date: Date }[]>(
-      Prisma.sql`
-        SELECT date as date
-        FROM "CounterTimeseries"
-        WHERE "counterId" = ${counterId}
-          AND date >= ${startOfYesterday}
-          AND date <= ${endOfYesterday}
-        ORDER BY date DESC
-        LIMIT 1
-      `
-    ),
+    prisma.counterTimeseries.findFirst({
+      where: {
+        counterId,
+        date: {
+          gte: yesterdayBounds.start,
+          lt: yesterdayBounds.end,
+        },
+      },
+      orderBy: {
+        date: "desc",
+      },
+    }),
+    // Total passages
     prisma.counterTimeseries.aggregate({
       where: {
         counterId,
@@ -117,32 +95,18 @@ export async function getCounterStats(counterId: string) {
     }),
   ]);
 
-  const [maxDay] = await prisma.$queryRaw<{ day: string; total: bigint }[]>(
+  // Requête pour le jour avec le plus de passages
+  const maxDay = await prisma.$queryRaw<{ day: string; total: number }[]>(
     Prisma.sql`
-      WITH first_date AS (
-        SELECT MIN(date) as start_date
+      WITH daily_stats AS (
+        SELECT 
+          DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day,
+          SUM(value)::integer as total
         FROM "CounterTimeseries"
         WHERE "counterId" = ${counterId}
-      ),
-      dates AS (
-        SELECT generate_series(
-          date_trunc('day', (SELECT start_date FROM first_date)::timestamp),
-          date_trunc('day', ${endOfYesterday}::timestamp),
-          interval '1 day'
-        )::date as day
-      ),
-      daily_stats AS (
-        SELECT 
-          dates.day::text as day,
-          COALESCE(SUM(value), 0)::bigint as total
-        FROM dates
-        LEFT JOIN "CounterTimeseries" ON 
-          "CounterTimeseries"."counterId" = ${counterId}
-          AND "CounterTimeseries".date >= (dates.day + interval '1 hour') AT TIME ZONE 'Europe/Paris'
-          AND "CounterTimeseries".date < (dates.day + interval '1 day' + interval '1 hour') AT TIME ZONE 'Europe/Paris'
-        GROUP BY dates.day
+        GROUP BY DATE(date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
       )
-      SELECT day, total
+      SELECT day::text, total
       FROM daily_stats
       ORDER BY total DESC
       LIMIT 1
@@ -150,19 +114,63 @@ export async function getCounterStats(counterId: string) {
   );
 
   return {
+    debug: {
+      now,
+    },
     beforeYesterday: Number(beforeYesterdayStats[0]?.total || 0),
     yesterday: Number(yesterdayStats[0]?.total || 0),
     firstPassageDate: firstPassage?.date || null,
     lastPassageDate: lastPassage?.date || null,
-    lastPassageBeforeYesterday: lastPassageBeforeYesterday[0]?.date || null,
-    lastPassageYesterday: lastPassageYesterday[0]?.date || null,
+    lastPassageBeforeYesterday: lastPassageBeforeYesterday?.date || null,
+    lastPassageYesterday: lastPassageYesterday?.date || null,
     totalPassages: Number(totalPassages._sum?.value || 0),
-    maxDay: maxDay
+    maxDay: maxDay[0]
       ? {
-          date: new Date(maxDay.day),
-          value: Number(maxDay.total),
+          date: new Date(maxDay[0].day),
+          value: Number(maxDay[0].total),
         }
       : null,
+  };
+}
+
+/**
+ * Récupère les données horaires pour une journée donnée
+ * @param counterId ID du compteur
+ * @param date Date de la journée (en heure de Paris)
+ * @returns Données horaires avec index en UTC et labels en heure de Paris
+ */
+export async function getDayHourlyStats(counterId: string, date: Date) {
+  const hoursParis = getHoursOfDay(date);
+
+  const stats = await Promise.all(
+    hoursParis.map(async (hourStart, index) => {
+      const hourEnd = new Date(hourStart.getTime() + 60 * 60 * 1000); // +1 heure
+
+      const result = await prisma.counterTimeseries.aggregate({
+        where: {
+          counterId,
+          date: {
+            gte: hourStart,
+            lt: hourEnd,
+          },
+        },
+        _sum: {
+          value: true,
+        },
+      });
+
+      return {
+        hour: index, // 0-23 en heure de Paris
+        utcStart: hourStart,
+        value: Number(result._sum?.value || 0),
+      };
+    })
+  );
+
+  return {
+    index: stats.map((s) => s.utcStart.toISOString()),
+    values: stats.map((s) => s.value),
+    labels: stats.map((s) => `${s.hour}h`), // Labels en heure de Paris
   };
 }
 

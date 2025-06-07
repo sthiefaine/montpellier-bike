@@ -1,76 +1,68 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getStartOfDay, getEndOfDay, getStartOfWeek } from "./dateHelpers";
+import { PreloadedCounterData } from "@/app/page";
 
 export async function getHourlyStats(counterId: string) {
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = now;
 
-  const startOfWeek = new Date(today);
-  const dayOfWeek = today.getDay();
-  const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  startOfWeek.setDate(today.getDate() - diff);
+  // Calculer le début de la semaine (lundi)
+  const startOfWeek = getStartOfWeek(today);
 
-  const dayPromises = Array.from({ length: 7 }, (_, index) => {
-    const dayStart = new Date(startOfWeek);
-    dayStart.setDate(dayStart.getDate() + index);
-    dayStart.setHours(1, 0, 0, 0);
+  // Récupérer les statistiques pour chaque jour de la semaine
+  const days = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ];
+  const stats = await Promise.all(
+    days.map(async (day) => {
+      const dayIndex = days.indexOf(day);
+      const startDate = new Date(startOfWeek);
+      startDate.setDate(startOfWeek.getDate() + dayIndex);
+      const dayStart = getStartOfDay(startDate);
+      const dayEnd = getEndOfDay(startDate);
 
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    dayEnd.setHours(0, 0, 0, 0);
-
-    const currentHour = now.getHours();
-    const isCurrentDay = index === (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
-
-    return prisma.$queryRaw<{ hour: number; total: bigint }[]>(
-      Prisma.sql`
-        SELECT 
-          EXTRACT(HOUR FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')::integer as hour,
-          COALESCE(SUM(value), 0)::bigint as total
-        FROM "CounterTimeseries"
-        WHERE "counterId" = ${counterId}
-          AND date >= ${dayStart}
-          AND date <= ${dayEnd}
-          AND (
-            NOT ${isCurrentDay}::boolean 
-            OR EXTRACT(HOUR FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') <= ${currentHour}
+      const hourlyStats = await prisma.$queryRaw<
+        { hour: number; total: number }[]
+      >(
+        Prisma.sql`
+          WITH hourly_stats AS (
+            SELECT 
+              EXTRACT(HOUR FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as hour,
+              SUM(value)::integer as total
+            FROM "CounterTimeseries"
+            WHERE "counterId" = ${counterId}
+              AND date >= ${dayStart}
+              AND date <= ${dayEnd}
+            GROUP BY hour
           )
-        GROUP BY hour
-        ORDER BY hour ASC
-      `
-    );
-  });
+          SELECT 
+            hour,
+            COALESCE(total, 0) as total
+          FROM generate_series(0, 23) as hours
+          LEFT JOIN hourly_stats ON hourly_stats.hour = hours
+          ORDER BY hour
+        `
+      );
 
-  const [
-    mondayStats,
-    tuesdayStats,
-    wednesdayStats,
-    thursdayStats,
-    fridayStats,
-    saturdayStats,
-    sundayStats,
-  ] = await Promise.all(dayPromises);
+      return {
+        day,
+        stats: hourlyStats.map((stat) => ({
+          hour: stat.hour,
+          value: stat.total,
+        })),
+      };
+    })
+  );
 
-  const formatHourlyData = (stats: { hour: number; total: bigint }[]) => {
-    const hourlyData = Array.from({ length: 24 }, (_, hour) => ({
-      hour,
-      value: 0,
-    }));
-
-    stats.forEach((stat) => {
-      hourlyData[stat.hour].value = Number(stat.total);
-    });
-
-    return hourlyData;
-  };
-
-  return {
-    monday: formatHourlyData(mondayStats),
-    tuesday: formatHourlyData(tuesdayStats),
-    wednesday: formatHourlyData(wednesdayStats),
-    thursday: formatHourlyData(thursdayStats),
-    friday: formatHourlyData(fridayStats),
-    saturday: formatHourlyData(saturdayStats),
-    sunday: formatHourlyData(sundayStats),
-  };
+  return stats.reduce((acc, { day, stats }) => {
+    acc[day as keyof PreloadedCounterData["hourlyStats"]] = stats;
+    return acc;
+  }, {} as PreloadedCounterData["hourlyStats"]);
 }

@@ -2,52 +2,57 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 
 export async function getYearlyStats(counterId: string) {
-  const now = new Date();
-  const firstDate = await prisma.counterTimeseries.findFirst({
+  const firstPassage = await prisma.counterTimeseries.findFirst({
     where: {
       counterId,
     },
     orderBy: {
       date: "asc",
     },
-    select: {
-      date: true,
-    },
   });
 
-  if (!firstDate) {
+  if (!firstPassage) {
     return [];
   }
 
-  const yearStart = new Date(firstDate.date);
-  yearStart.setHours(1, 0, 0, 0);
+  const lastPassage = await prisma.counterTimeseries.findFirst({
+    where: {
+      counterId,
+    },
+    orderBy: {
+      date: "desc",
+    },
+  });
 
-  const yearEnd = new Date(now.getFullYear() + 1, 0, 1);
-  yearEnd.setHours(1, 0, 0, 0);
+  const startYear = firstPassage.date.getFullYear();
+  const endYear = lastPassage?.date.getFullYear() || new Date().getFullYear();
 
-  const stats = await prisma.$queryRaw<{ year: number; total: bigint }[]>(
+  const yearlyStats = await prisma.$queryRaw<{ year: string; total: bigint }[]>(
     Prisma.sql`
-      WITH dates AS (
+      WITH years AS (
         SELECT generate_series(
-          date_trunc('year', ${yearStart}::timestamp),
-          date_trunc('year', ${yearEnd}::timestamp),
-          interval '1 year'
-        )::date as year_start
+          ${startYear}::integer,
+          ${endYear}::integer
+        ) as year
+      ),
+      yearly_stats AS (
+        SELECT 
+          years.year::text as year,
+          COALESCE(SUM(value), 0)::bigint as total
+        FROM years
+        LEFT JOIN "CounterTimeseries" ON 
+          "CounterTimeseries"."counterId" = ${counterId}
+          AND EXTRACT(YEAR FROM "CounterTimeseries".date) = years.year
+        GROUP BY years.year
       )
-      SELECT 
-        EXTRACT(YEAR FROM dates.year_start)::integer as year,
-        COALESCE(SUM(value), 0)::bigint as total
-      FROM dates
-      LEFT JOIN "CounterTimeseries" ON 
-        EXTRACT(YEAR FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = EXTRACT(YEAR FROM dates.year_start)
-        AND "CounterTimeseries"."counterId" = ${counterId}
-      GROUP BY dates.year_start
-      ORDER BY dates.year_start ASC
+      SELECT year, total
+      FROM yearly_stats
+      ORDER BY year
     `
   );
 
-  return stats.map((stat) => ({
-    year: stat.year,
+  return yearlyStats.map((stat: { year: string; total: bigint }) => ({
+    year: parseInt(stat.year),
     total: Number(stat.total),
   }));
 }

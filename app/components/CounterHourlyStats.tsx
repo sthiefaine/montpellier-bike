@@ -35,32 +35,66 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function CounterHourlyStats({ counter, preloadedData }: CounterHourlyStatsProps) {
+const dayFormatter = new Intl.DateTimeFormat('fr-FR', { weekday: 'long' });
+
+const WEEK_DAYS_CONFIG = {
+  monday: { key: "monday", name: dayFormatter.format(new Date(2024, 0, 1)), color: "#9333EA" },
+  tuesday: { key: "tuesday", name: dayFormatter.format(new Date(2024, 0, 2)), color: "#2563eb" },
+  wednesday: { key: "wednesday", name: dayFormatter.format(new Date(2024, 0, 3)), color: "#00FF00" },
+  thursday: { key: "thursday", name: dayFormatter.format(new Date(2024, 0, 4)), color: "#FF0000" },
+  friday: { key: "friday", name: dayFormatter.format(new Date(2024, 0, 5)), color: "#f59e0b" },
+  saturday: { key: "saturday", name: dayFormatter.format(new Date(2024, 0, 6)), color: "#FFE000" },
+  sunday: { key: "sunday", name: dayFormatter.format(new Date(2024, 0, 7)), color: "#14b8a6" },
+} as const;
+
+const DAY_ORDER = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+
+const DAY_MAP = {
+  0: "sunday",
+  1: "monday",
+  2: "tuesday",
+  3: "wednesday",
+  4: "thursday",
+  5: "friday",
+  6: "saturday",
+} as const;
+
+export default function CounterHourlyStats({
+  counter,
+  preloadedData,
+}: CounterHourlyStatsProps) {
   if (!counter || !preloadedData) return <CounterSkeleton />;
 
   const formatValue = (value: number) => {
     return new Intl.NumberFormat("fr-FR").format(value);
   };
 
-  const hours = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0];
+  const hours = [
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+    22, 23,
+  ];
 
   const hasData = (day: string) => {
-    const dayData = preloadedData.hourlyStats[day as keyof typeof preloadedData.hourlyStats];
+    const dayData =
+      preloadedData.hourlyStats[day as keyof typeof preloadedData.hourlyStats];
     return dayData && dayData.some((stat) => stat.value > 0);
   };
 
   const getVisibleDays = () => {
-    const days = [
-      { key: "monday", name: "Lundi", color: "#3b82f6" },
-      { key: "tuesday", name: "Mardi", color: "#22c55e" },
-      { key: "wednesday", name: "Mercredi", color: "#eab308" },
-      { key: "thursday", name: "Jeudi", color: "#ef4444" },
-      { key: "friday", name: "Vendredi", color: "#8b5cf6" },
-      { key: "saturday", name: "Samedi", color: "#ec4899" },
-      { key: "sunday", name: "Dimanche", color: "#14b8a6" },
-    ];
+    const today = new Date().getDay();
+    const todayKey = DAY_MAP[today as keyof typeof DAY_MAP];
 
-    return days.filter((day) => hasData(day.key));
+    return Object.values(WEEK_DAYS_CONFIG)
+      .filter((day) => hasData(day.key) && day.key !== todayKey)
+      .sort((a, b) => DAY_ORDER.indexOf(a.key as typeof DAY_ORDER[number]) - DAY_ORDER.indexOf(b.key as typeof DAY_ORDER[number]));
   };
 
   const visibleDays = getVisibleDays();
@@ -84,8 +118,9 @@ export default function CounterHourlyStats({ counter, preloadedData }: CounterHo
                   ...Object.fromEntries(
                     visibleDays.map((day) => [
                       day.key,
-                      preloadedData.hourlyStats[day.key as keyof typeof preloadedData.hourlyStats][hour]
-                        .value,
+                      preloadedData.hourlyStats[
+                        day.key as keyof typeof preloadedData.hourlyStats
+                      ][hour].value,
                     ])
                   ),
                 };
@@ -119,7 +154,9 @@ export default function CounterHourlyStats({ counter, preloadedData }: CounterHo
                           className="w-2 h-0.5"
                           style={{ backgroundColor: day.color }}
                         ></div>
-                        <span style={{ color: day.color }}>{day.name.slice(0, 3)}</span>
+                        <span style={{ color: day.color }}>
+                          {day.name.slice(0, 3)}
+                        </span>
                       </div>
                     ))}
                   </div>
