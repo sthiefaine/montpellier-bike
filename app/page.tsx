@@ -5,17 +5,17 @@ import path from "path";
 import { cache } from "react";
 import maplibregl from "maplibre-gl";
 
-import CounterDetailsSection from "@/app/components/CounterDetailsSection";
-import HeroSection from "@/app/components/HeroSection";
+import CounterDetailsSection from "@/components/CounterDetailsSection";
+import HeroSection from "@/components/HeroSection";
 
 import { BikeCounter } from "@prisma/client";
 
-import { getCounters, getCounterIsActive } from "@/app/actions/counters/base";
-import { getCounterStats } from "@/app/actions/counters/stats";
-import { getHourlyStats } from "@/app/actions/counters/hourly";
-import { getWeeklyStats } from "@/app/actions/counters/weekly";
-import { getYearlyStats } from "@/app/actions/counters/yearly";
-import { getDailyStatsForYear } from "@/app/actions/counters/daily";
+import { getCounters, getCounterIsActive } from "@/actions/counters/base";
+import { getCounterStats } from "@/actions/counters/stats";
+import { getHourlyStats } from "@/actions/counters/hourly";
+import { getWeeklyStats } from "@/actions/counters/weekly";
+import { getYearlyStats } from "@/actions/counters/yearly";
+import { getDailyStatsForYear } from "@/actions/counters/daily";
 
 export interface PreloadedCounterData {
   counterId: string;

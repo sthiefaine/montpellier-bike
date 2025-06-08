@@ -3,7 +3,7 @@
 import type { BikeCounter } from "@prisma/client";
 import CounterSkeleton from "./CounterSkeleton";
 import NumberFlow from "./NumberFlow";
-import { PreloadedCounterData } from "../page";
+import { PreloadedCounterData } from "../app/page";
 
 interface CounterDailyStatsProps {
   counter: BikeCounter | null;

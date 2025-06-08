@@ -1,10 +1,10 @@
 "use server";
 
-import { getGlobalStats } from "@/app/actions/counters/stats";
-import { getDailyStats } from "@/app/actions/dailyStats";
-import NumberFlow from "@/app/components/NumberFlow";
-import StatsBar from "@/app/components/StatsBar";
-import WeatherMessage from "@/app/components/WeatherMessage";
+import { getGlobalStats } from "@/actions/counters/stats";
+import { getDailyStats } from "@/actions/dailyStats";
+import NumberFlow from "@/components/NumberFlow";
+import StatsBar from "@/components/StatsBar";
+import WeatherMessage from "@/components/WeatherMessage";
 import Image from "next/image";
 
 const getDailyStatsData = async () => {

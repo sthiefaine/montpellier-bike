@@ -3,14 +3,14 @@
 import { Suspense, useState } from "react";
 import MapLibre from "./MapLibre";
 import CounterDetails from "./CounterDetails";
-import CounterDailyStats from "@/app/components/CounterDailyStats";
-import CounterYearlyStats from "@/app/components/CounterYearlyStats";
-import CounterHourlyStats from "@/app/components/CounterHourlyStats";
-import CounterWeeklyStats from "@/app/components/CounterWeeklyStats";
+import CounterDailyStats from "@/components/CounterDailyStats";
+import CounterYearlyStats from "@/components/CounterYearlyStats";
+import CounterHourlyStats from "@/components/CounterHourlyStats";
+import CounterWeeklyStats from "@/components/CounterWeeklyStats";
 import type { BikeCounter } from "@prisma/client";
 import type { StyleSpecification } from "maplibre-gl";
 import CounterDailyBarChart from "./CounterDailyBarChart";
-import { PreloadedCounterData } from "../page";
+import { PreloadedCounterData } from "../app/page";
 
 interface CounterDetailsSectionProps {
   mapStyle: StyleSpecification;

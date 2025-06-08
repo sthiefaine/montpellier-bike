@@ -13,7 +13,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import CounterSkeleton from "./CounterSkeleton";
-import { PreloadedCounterData } from "../page";
+import { PreloadedCounterData } from "../app/page";
 
 interface CounterWeeklyStatsProps {
   counter: BikeCounter | null;

@@ -15,7 +15,7 @@ import {
   BarController,
   LineController,
 } from "chart.js";
-import { PreloadedCounterData } from "../page";
+import { PreloadedCounterData } from "../app/page";
 import { useEffect, useState } from "react";
 
 ChartJS.register(

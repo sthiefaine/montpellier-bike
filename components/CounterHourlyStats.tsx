@@ -12,7 +12,7 @@ import {
   Legend,
 } from "recharts";
 import CounterSkeleton from "./CounterSkeleton";
-import { PreloadedCounterData } from "../page";
+import { PreloadedCounterData } from "../app/page";
 
 interface CounterHourlyStatsProps {
   counter: BikeCounter | null;

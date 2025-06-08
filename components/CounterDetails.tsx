@@ -2,7 +2,7 @@
 
 import type { BikeCounter } from "@prisma/client";
 import CounterSkeleton from "./CounterSkeleton";
-import { PreloadedCounterData } from "../page";
+import { PreloadedCounterData } from "../app/page";
 import Link from "next/link";
 
 interface CounterDetailsProps {

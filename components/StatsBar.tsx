@@ -1,6 +1,6 @@
 "use client";
 
-import NumberFlow from "@/app/components/NumberFlow";
+import NumberFlow from "@/components/NumberFlow";
 import { useEffect, useState } from "react";
 
 type StatsBarProps = {
