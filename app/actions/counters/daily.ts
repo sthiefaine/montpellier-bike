@@ -1,24 +1,34 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getStartOfMonth, getEndOfMonth, getStartOfDay, getEndOfDay } from "./dateHelpers";
+import {
+  getStartOfMonth,
+  getEndOfMonth,
+  getStartOfDay,
+  getEndOfDay,
+  getStartOfYear,
+  getEndOfYear,
+} from "./dateHelpers";
 
 export async function getDailyStatsForYear(counterId: string) {
   const now = new Date();
-  const startOfYear = new Date(now.getFullYear(), 0, 1);
-  const endOfYear = new Date(now.getFullYear(), 11, 31);
+  const currentYear = now.getFullYear();
+
+  // Créer les dates directement sans passer par les helpers
+  const startOfYear = `${currentYear}-01-01`;
+  const endOfYear = `${currentYear}-12-31`;
 
   const dailyStats = await prisma.$queryRaw<{ day: string; total: number }[]>(
     Prisma.sql`
       WITH dates AS (
         SELECT generate_series(
-          date_trunc('day', ${getStartOfMonth(startOfYear)}),
-          date_trunc('day', ${getEndOfMonth(endOfYear)}),
+          ${startOfYear}::date,
+          ${endOfYear}::date,
           interval '1 day'
         )::date as day
       ),
       daily_stats AS (
         SELECT 
-          dates.day::text as day,
+          dates.day as day,
           COALESCE(SUM(value), 0)::integer as total
         FROM dates
         LEFT JOIN "CounterTimeseries" ON 
@@ -26,23 +36,21 @@ export async function getDailyStatsForYear(counterId: string) {
           AND date_trunc('day', "CounterTimeseries".date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = dates.day
         GROUP BY dates.day
       )
-      SELECT day, total
+      SELECT day::text as day, total
       FROM daily_stats
+      WHERE day < (NOW() AT TIME ZONE 'Europe/Paris')::date
       ORDER BY day
     `
   );
 
-  const today = getStartOfDay((new Date()));
-  const filteredStats = dailyStats
-    .filter(stat => new Date(stat.day).getTime() < today.getTime())
-    .map(stat => ({
-      day: stat.day,
-      value: stat.total
-    }));
+  const filteredStats = dailyStats.map((stat) => ({
+    day: stat.day,
+    value: stat.total,
+  }));
 
   // Calculer les moyennes
   const total = filteredStats.reduce((acc, stat) => acc + stat.value, 0);
-  const activeDays = filteredStats.filter(stat => stat.value > 0).length;
+  const activeDays = filteredStats.filter((stat) => stat.value > 0).length;
   const globalAverage = total / filteredStats.length;
   const activeDaysAverage = activeDays > 0 ? total / activeDays : 0;
 

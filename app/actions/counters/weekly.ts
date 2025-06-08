@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getStartOfWeek, getEndOfWeek, getStartOfDay } from "./dateHelpers";
+import { getStartOfWeek, getEndOfWeek } from "./dateHelpers";
 
 export async function getWeeklyStats(counterId: string) {
   const now = new Date();

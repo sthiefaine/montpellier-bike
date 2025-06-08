@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getStartOfDay, getEndOfDay, getParisTimezoneOffset } from "@/app/actions/counters/dateHelpers";
+import { getStartOfDay, getEndOfDay } from "@/app/actions/counters/dateHelpers";
 
 export async function GET(
   request: NextRequest,
@@ -12,11 +12,9 @@ export async function GET(
   const toDate = searchParams?.get("toDate") || "2025-06-07";
   const numero_serie = (await params).id || "X2H21070351";
 
-  // Pour la base de données, on utilise les helpers
   const startDate = getStartOfDay(new Date(fromDate));
   const endDate = getEndOfDay(new Date(toDate));
 
-  // Pour OpenData, on garde la logique spécifique avec les offsets
   const openDataStartDate = new Date(fromDate);
   const openDataStartDateParis = getStartOfDay(openDataStartDate);
 

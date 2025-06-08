@@ -7,7 +7,7 @@ import {
 } from "./dateHelpers";
 
 export async function getCounterStats(counterId: string) {
-  const now = new Date(); // Date UTC actuelle
+  const now = new Date();
 
   // Calcul des plages pour avant-hier et hier en heure de Paris
   const beforeYesterdayBounds = getBeforeYesterdayBoundsParis(now);
@@ -114,9 +114,6 @@ export async function getCounterStats(counterId: string) {
   );
 
   return {
-    debug: {
-      now,
-    },
     beforeYesterday: Number(beforeYesterdayStats[0]?.total || 0),
     yesterday: Number(yesterdayStats[0]?.total || 0),
     firstPassageDate: firstPassage?.date || null,

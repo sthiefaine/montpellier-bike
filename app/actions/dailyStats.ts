@@ -1,6 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
+import {
+  getBeforeYesterdayBoundsParis,
+  getEndOfDay,
+  getStartOfDay,
+  getYesterdayBoundsParis,
+} from "./counters/dateHelpers";
 
 export type Weather = {
   isRaining: boolean;
@@ -21,30 +27,15 @@ export type DailyStats = {
 };
 
 export async function getDailyStats(): Promise<DailyStats> {
-  const timeZone = "Europe/Paris";
-  const today = new Date(new Date().toLocaleString("en-US", { timeZone }));
-  today.setHours(0, 0, 0, 0);
-
-  const dayBeforeYesterday = new Date(today);
-  dayBeforeYesterday.setDate(dayBeforeYesterday.getDate() - 2);
-  dayBeforeYesterday.setHours(1, 0, 0, 0);
-
-  const dayBeforeYesterdayEnd = new Date(today);
-  dayBeforeYesterdayEnd.setDate(dayBeforeYesterdayEnd.getDate() - 1);
-  dayBeforeYesterdayEnd.setHours(0, 0, 0, 0);
-
-  const yesterday = new Date(today);
-  yesterday.setDate(yesterday.getDate() - 1);
-  yesterday.setHours(1, 0, 0, 0);
-
-  const yesterdayEnd = new Date(today);
-  yesterdayEnd.setDate(yesterdayEnd.getDate());
-  yesterdayEnd.setHours(0, 0, 0, 0);
-
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  tomorrow.setHours(0, 0, 0, 0);
-
+  const now = new Date();
+  const today = getStartOfDay(now);
+  const tomorrow = getEndOfDay(now);
+  const dayBeforeYesterdayBounds = getBeforeYesterdayBoundsParis(now);
+  const dayBeforeYesterday = dayBeforeYesterdayBounds.start;
+  const dayBeforeYesterdayEnd = dayBeforeYesterdayBounds.end;
+  const yesterdayBounds = getYesterdayBoundsParis(now);
+  const yesterday = yesterdayBounds.start;
+  const yesterdayEnd = yesterdayBounds.end;
 
   // Statistiques des passages
   const [dayBeforeYesterdayStats, yesterdayStats] = await Promise.all([
@@ -110,7 +101,7 @@ export async function getDailyStats(): Promise<DailyStats> {
     where: {
       date: {
         gte: yesterday,
-        lt: yesterdayEnd,
+        lte: yesterdayEnd,
       },
       type: "hourly",
     },
@@ -137,18 +128,22 @@ export async function getDailyStats(): Promise<DailyStats> {
     weather: {
       dayBeforeYesterday: {
         temperature: maxTemp(dayBeforeYesterdayWeather),
-        isRaining: dayBeforeYesterdayWeather.some(w => w.rain && w.rain > 0),
-        isCloudy: dayBeforeYesterdayWeather.some(w => w.cloudCover && w.cloudCover > 80),
+        isRaining: dayBeforeYesterdayWeather.some((w) => w.rain && w.rain > 0),
+        isCloudy: dayBeforeYesterdayWeather.some(
+          (w) => w.cloudCover && w.cloudCover > 80
+        ),
       },
       yesterday: {
         temperature: maxTemp(yesterdayWeather),
-        isRaining: yesterdayWeather.some(w => w.rain && w.rain > 0),
-        isCloudy: yesterdayWeather.some(w => w.cloudCover && w.cloudCover > 80),
+        isRaining: yesterdayWeather.some((w) => w.rain && w.rain > 0),
+        isCloudy: yesterdayWeather.some(
+          (w) => w.cloudCover && w.cloudCover > 80
+        ),
       },
       today: {
         temperature: maxTemp(todayWeather),
-        isRaining: todayWeather.some(w => w.rain && w.rain > 0),
-        isCloudy: todayWeather.some(w => w.cloudCover && w.cloudCover > 80),
+        isRaining: todayWeather.some((w) => w.rain && w.rain > 0),
+        isCloudy: todayWeather.some((w) => w.cloudCover && w.cloudCover > 80),
       },
     },
   };

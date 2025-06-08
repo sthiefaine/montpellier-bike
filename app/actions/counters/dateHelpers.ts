@@ -6,7 +6,9 @@
 const TIMEZONE = "Europe/Paris";
 
 /**
- * Version simplifiée et fiable pour le début de journée
+ * Obtient le début d'une journée en heure de Paris
+ * @param date Date de référence
+ * @returns Date du début de la journée en heure de Paris
  */
 export function getStartOfDayParis(date: Date): Date {
   // Obtenir la date au format YYYY-MM-DD en heure de Paris
