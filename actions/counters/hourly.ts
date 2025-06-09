@@ -16,193 +16,204 @@ export async function getHourlyStats(counterId: string) {
   const now = new Date();
   const today = now;
   const startOfWeek = getStartOfWeek(today);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  const weekEnd = getEndOfDay(endOfWeek);
+
+  // UNE SEULE REQUÊTE pour toute la semaine
+  const weeklyStats = await prisma.$queryRaw<
+    { day_of_week: number; hour: number; total: number }[]
+  >(
+    Prisma.sql`
+      WITH weekly_stats AS (
+        SELECT 
+          EXTRACT(DOW FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as day_of_week,
+          EXTRACT(HOUR FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as hour,
+          SUM(value)::integer as total
+        FROM "CounterTimeseries"
+        WHERE "counterId" = ${counterId}
+          AND date >= ${getStartOfDay(startOfWeek)}
+          AND date <= ${weekEnd}
+        GROUP BY day_of_week, hour
+      )
+      SELECT 
+        days.day_of_week,
+        hours.hour,
+        COALESCE(weekly_stats.total, 0) as total
+      FROM (VALUES (1), (2), (3), (4), (5), (6), (0)) as days(day_of_week)
+      CROSS JOIN generate_series(0, 23) as hours(hour)
+      LEFT JOIN weekly_stats ON weekly_stats.day_of_week = days.day_of_week 
+                            AND weekly_stats.hour = hours.hour
+      ORDER BY days.day_of_week, hours.hour
+    `
+  );
 
   const days = [
     "monday",
-    "tuesday",
+    "tuesday", 
     "wednesday",
     "thursday",
     "friday",
     "saturday",
     "sunday",
   ];
-  const stats = await Promise.all(
-    days.map(async (day) => {
-      const dayIndex = days.indexOf(day);
-      const startDate = new Date(startOfWeek);
-      startDate.setDate(startOfWeek.getDate() + dayIndex);
-      const dayStart = getStartOfDay(startDate);
-      const dayEnd = getEndOfDay(startDate);
 
-      const hourlyStats = await prisma.$queryRaw<
-        { hour: number; total: number }[]
-      >(
-        Prisma.sql`
-          WITH hourly_stats AS (
-            SELECT 
-              EXTRACT(HOUR FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as hour,
-              SUM(value)::integer as total
-            FROM "CounterTimeseries"
-            WHERE "counterId" = ${counterId}
-              AND date >= ${dayStart}
-              AND date <= ${dayEnd}
-            GROUP BY hour
-          )
-          SELECT 
-            hour,
-            COALESCE(total, 0) as total
-          FROM generate_series(0, 23) as hours
-          LEFT JOIN hourly_stats ON hourly_stats.hour = hours
-          ORDER BY hour
-        `
-      );
+  // Transformer les résultats en structure attendue
+  const result = {} as PreloadedCounterData["hourlyStats"];
+  
+  days.forEach((day, index) => {
+    // PostgreSQL DOW: 0=Sunday, 1=Monday, etc.
+    const pgDayIndex = index === 6 ? 0 : index + 1;
+    
+    result[day as keyof PreloadedCounterData["hourlyStats"]] = weeklyStats
+      .filter(stat => stat.day_of_week === pgDayIndex)
+      .map(stat => ({
+        hour: stat.hour,
+        value: stat.total,
+      }));
+  });
 
-      return {
-        day,
-        stats: hourlyStats.map((stat) => ({
-          hour: stat.hour,
-          value: stat.total,
-        })),
-      };
-    })
-  );
-
-  return stats.reduce((acc, { day, stats }) => {
-    acc[day as keyof PreloadedCounterData["hourlyStats"]] = stats;
-    return acc;
-  }, {} as PreloadedCounterData["hourlyStats"]);
+  return result;
 }
 
 export async function getHourlyDetailsStats(counterId: string) {
-  const [firstPassage, lastPassage] = await Promise.all([
-    prisma.counterTimeseries.findFirst({
-      where: { counterId },
-      orderBy: { date: "asc" },
-      select: { date: true },
-    }),
-    prisma.counterTimeseries.findFirst({
-      where: { counterId },
-      orderBy: { date: "desc" },
-      select: { date: true },
-    }),
-  ]);
+  // Récupérer les bornes en une seule requête
+  const boundaries = await prisma.counterTimeseries.aggregate({
+    where: { counterId },
+    _min: { date: true },
+    _max: { date: true },
+  });
 
-  if (!firstPassage || !lastPassage) {
+  if (!boundaries._min.date || !boundaries._max.date) {
     return null;
   }
 
   const firstPassageParis = new Date(
-    firstPassage.date.toLocaleString("en-US", { timeZone: "Europe/Paris" })
+    boundaries._min.date.toLocaleString("en-US", { timeZone: "Europe/Paris" })
   );
   const lastPassageParis = new Date(
-    lastPassage.date.toLocaleString("en-US", { timeZone: "Europe/Paris" })
+    boundaries._max.date.toLocaleString("en-US", { timeZone: "Europe/Paris" })
   );
 
   const startYear = firstPassageParis.getFullYear();
   const endYear = lastPassageParis.getFullYear();
 
+  // UNE SEULE REQUÊTE pour toutes les données
+  const allData = await prisma.$queryRaw<
+    { 
+      year: number; 
+      week: number; 
+      day_of_week: number; 
+      hour: number; 
+      total: number;
+      date: Date;
+    }[]
+  >(
+    Prisma.sql`
+      WITH all_stats AS (
+        SELECT 
+          EXTRACT(YEAR FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as year,
+          EXTRACT(WEEK FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as week,
+          EXTRACT(DOW FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as day_of_week,
+          EXTRACT(HOUR FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as hour,
+          (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')::date as date,
+          SUM(value)::integer as total
+        FROM "CounterTimeseries"
+        WHERE "counterId" = ${counterId}
+          AND date >= ${boundaries._min.date}
+          AND date <= ${boundaries._max.date}
+        GROUP BY year, week, day_of_week, hour, date
+      )
+      SELECT 
+        year,
+        week,
+        day_of_week,
+        hour,
+        COALESCE(total, 0) as total,
+        date
+      FROM all_stats
+      WHERE total > 0
+      ORDER BY year, week, day_of_week, hour
+    `
+  );
+
   const days = [
     "monday",
     "tuesday",
-    "wednesday",
+    "wednesday", 
     "thursday",
     "friday",
     "saturday",
     "sunday",
   ] as const;
 
+  // Regrouper les données par année et semaine
+  const groupedData = new Map<string, typeof allData>();
+  
+  allData.forEach(row => {
+    const key = `${row.year}-${row.week}`;
+    if (!groupedData.has(key)) {
+      groupedData.set(key, []);
+    }
+    groupedData.get(key)!.push(row);
+  });
+
   const allStats: HourlyStatsDetailsTypes[] = [];
 
-  for (let year = startYear; year <= endYear; year++) {
-    const lastDayOfYear = new Date(year, 11, 31);
-    const firstDayOfYear = new Date(year, 0, 1);
-    const totalWeeks = Math.ceil(
-      (lastDayOfYear.getTime() - firstDayOfYear.getTime()) /
-        (7 * 24 * 60 * 60 * 1000)
-    );
+  for (const [yearWeek, weekData] of groupedData) {
+    const [year, week] = yearWeek.split('-').map(Number);
+    
+    // Calculer les dates de début et fin de semaine
+    const weekStartDate = getWeekStartDate(year, week);
+    const weekEndDate = getEndOfWeekParis(weekStartDate);
 
-    for (let week = 1; week <= totalWeeks; week++) {
-      const weekStartDate = getWeekStartDate(year, week);
-      const weekEndDate = getEndOfWeekParis(weekStartDate);
-
-      if (weekStartDate > lastPassageParis || weekEndDate < firstPassageParis) {
-        continue;
-      }
-
-      const stats = await Promise.all(
-        days.map(async (day, dayIndex) => {
-          // Calculer la date du jour en tenant compte du décalage lundi-dimanche
-          const dayStart = new Date(weekStartDate);
-          dayStart.setDate(dayStart.getDate() + dayIndex);
-
-          // Formater la date au format YYYY-MM-DD
-          const year = dayStart.getFullYear();
-          const month = String(dayStart.getMonth() + 1).padStart(2, "0");
-          const dayStr = String(dayStart.getDate()).padStart(2, "0");
-          const dateStr = `${year}-${month}-${dayStr}`;
-
-          const hourlyStats = await prisma.$queryRaw<
-            { hour: number; total: number }[]
-          >(
-            Prisma.sql`
-              WITH hourly_stats AS (
-                SELECT 
-                  EXTRACT(HOUR FROM (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))::integer as hour,
-                  SUM(value)::integer as total
-                FROM "CounterTimeseries"
-                WHERE "counterId" = ${counterId}
-                  AND (date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')::date = ${dateStr}::date
-                GROUP BY hour
-              )
-              SELECT 
-                hours as hour,
-                COALESCE(total, 0) as total
-              FROM generate_series(0, 23) as hours 
-              LEFT JOIN hourly_stats ON hourly_stats.hour = hours
-              ORDER BY hours
-            `
-          );
-
-          return {
-            day,
-            stats: hourlyStats.map((stat) => ({
-              hour: stat.hour,
-              value: stat.total,
-            })),
-          };
-        })
-      );
-
-      const hourlyStats = stats.reduce((acc, { day, stats }) => {
-        acc[day] = stats;
-        return acc;
-      }, {} as Record<(typeof days)[number], (typeof stats)[number]["stats"]>);
-
-      // Vérifier si la semaine a des données
-      const hasData = Object.values(hourlyStats).some((dayStats) =>
-        dayStats.some((stat) => stat.value > 0)
-      );
-
-      if (hasData) {
-        allStats.push({
-          year,
-          week: {
-            number: week,
-            startDate: weekStartDate,
-            endDate: weekEndDate,
-            stats: hourlyStats,
-          },
-          availableYears: {
-            start: startYear,
-            end: endYear,
-          },
-        });
-      }
+    // Vérifier si dans la plage
+    if (weekStartDate > lastPassageParis || weekEndDate < firstPassageParis) {
+      continue;
     }
+
+    // Transformer les données pour cette semaine
+    const hourlyStats = {} as Record<(typeof days)[number], any[]>;
+    
+    days.forEach((day, dayIndex) => {
+      const pgDayIndex = dayIndex === 6 ? 0 : dayIndex + 1;
+      
+      // Créer un tableau de 24 heures avec toutes les valeurs à 0
+      const dayStats = Array.from({ length: 24 }, (_, hour) => ({
+        hour,
+        value: 0,
+      }));
+
+      // Remplir avec les vraies valeurs
+      weekData
+        .filter(row => row.day_of_week === pgDayIndex)
+        .forEach(row => {
+          if (row.hour >= 0 && row.hour <= 23) {
+            dayStats[row.hour].value = row.total;
+          }
+        });
+
+      hourlyStats[day] = dayStats;
+    });
+
+    allStats.push({
+      year,
+      week: {
+        number: week,
+        startDate: weekStartDate,
+        endDate: weekEndDate,
+        stats: hourlyStats,
+      },
+      availableYears: {
+        start: startYear,
+        end: endYear,
+      },
+    });
   }
 
   return allStats;
 }
+
 function getWeekStartDate(year: number, week: number): Date {
   const start = new Date(year, 0, 1);
   const weekStart = getStartOfWeekParis(start);
@@ -210,4 +221,3 @@ function getWeekStartDate(year: number, week: number): Date {
   result.setDate(result.getDate() + (week - 1) * 7);
   return result;
 }
-

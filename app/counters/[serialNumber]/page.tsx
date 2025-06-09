@@ -19,14 +19,7 @@ import Link from "next/link";
 import { PreloadedCounterDetailsData } from "@/types/counters/details";
 import CounterDetailsHourlyStats from "@/components/Stats/Details/CounterDetailsHourlyStats";
 import { prisma } from "@/lib/prisma";
-
-const getMapStyle = cache(async () => {
-  const data = await fs.readFile(
-    path.join(process.cwd(), "data/map/style.json"),
-    "utf8"
-  );
-  return JSON.parse(data) as maplibregl.StyleSpecification;
-});
+import { getMapStyle } from "@/actions/map";
 
 export async function generateStaticParams() {
   const counters = await prisma.bikeCounter.findMany({

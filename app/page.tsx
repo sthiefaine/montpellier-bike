@@ -17,14 +17,7 @@ import { getWeeklyStats } from "@/actions/counters/weekly";
 import { getYearlyStats } from "@/actions/counters/yearly";
 import { getDailyStatsForYear } from "@/actions/counters/daily";
 import { PreloadedCounterData } from "@/types/counters/counters";
-
-const getMapStyle = cache(async () => {
-  const data = await fs.readFile(
-    path.join(process.cwd(), "data/map/style.json"),
-    "utf8"
-  );
-  return JSON.parse(data) as maplibregl.StyleSpecification;
-});
+import { getMapStyle } from "@/actions/map";
 
 const getDefaultSelectedCounter = cache(async () => {
   const counters = (await getCounters()) as BikeCounter[];

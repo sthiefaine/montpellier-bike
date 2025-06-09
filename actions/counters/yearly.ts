@@ -87,43 +87,42 @@ export async function getYearlyProgressStats(counterId: string) {
   const currentMonth = currentDate.getMonth();
   const currentDay = currentDate.getDate();
 
-  const stats = await Promise.all(
-    Array.from(
-      { length: endYear - startYear + 1 },
-      (_, i) => startYear + i
-    ).map(async (year) => {
-      const yearToDateTotal = await prisma.counterTimeseries.aggregate({
-        where: {
-          counterId,
-          date: {
-            gte: new Date(year, 0, 1),
-            lte: new Date(year, currentMonth, currentDay, 23, 59, 59),
-          },
-        },
-        _sum: {
-          value: true,
-        },
-      });
-
-      const yearTotal = await prisma.counterTimeseries.aggregate({
-        where: {
-          counterId,
-          date: {
-            gte: new Date(year, 0, 1),
-            lte: new Date(year, 11, 31, 23, 59, 59),
-          },
-        },
-        _sum: {
-          value: true,
-        },
-      });
-
-      return {
+  const stats = await prisma.$queryRaw<{ year: number; total: number; yearToDate: number }[]>(
+    Prisma.sql`
+      WITH years AS (
+        SELECT generate_series(
+          ${startYear}::integer,
+          ${endYear}::integer
+        ) as year
+      ),
+      yearly_stats AS (
+        SELECT 
+          years.year,
+          COALESCE(SUM(CASE 
+            WHEN EXTRACT(YEAR FROM date) = years.year 
+            THEN value 
+            ELSE 0 
+          END), 0)::integer as total,
+          COALESCE(SUM(CASE 
+            WHEN EXTRACT(YEAR FROM date) = years.year 
+            AND EXTRACT(MONTH FROM date) <= ${currentMonth + 1}
+            AND EXTRACT(DAY FROM date) <= ${currentDay}
+            THEN value 
+            ELSE 0 
+          END), 0)::integer as year_to_date
+        FROM years
+        LEFT JOIN "CounterTimeseries" ON 
+          "CounterTimeseries"."counterId" = ${counterId}
+          AND EXTRACT(YEAR FROM "CounterTimeseries".date) = years.year
+        GROUP BY years.year
+      )
+      SELECT 
         year,
-        total: yearTotal._sum.value || 0,
-        yearToDate: yearToDateTotal._sum.value || 0,
-      };
-    })
+        total,
+        year_to_date as "yearToDate"
+      FROM yearly_stats
+      ORDER BY year
+    `
   );
 
   return stats;
