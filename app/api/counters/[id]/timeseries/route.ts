@@ -8,8 +8,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const searchParams = request.nextUrl?.searchParams;
-  const fromDate = searchParams?.get("fromDate") || "2025-06-07";
-  const toDate = searchParams?.get("toDate") || "2025-06-07";
+  const fromDate = searchParams?.get("fromDate") || "2025-06-03";
+  const toDate = searchParams?.get("toDate") || "2025-06-03";
   const numero_serie = (await params).id || "X2H21070351";
 
   const startDate = getStartOfDay(new Date(fromDate));

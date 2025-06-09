@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { MapLibreSkeleton } from "./MapLibreSkeleton";
+import { MapLibreSkeleton } from "@/components/Maps/MapLibreSkeleton";
 import type { BikeCounter } from "@prisma/client";
 
 export type WeatherCircle = { lat: number; lon: number; radius: number };
@@ -23,6 +23,11 @@ interface MapLibreProps {
   weatherCircles?: WeatherCircle[];
   onCounterSelect?: (counter: BikeCounter | null) => void;
   defaultSelectedCounter?: BikeCounter | null;
+  defaultZoom?: number;
+  defaultCenter?: {
+    lat: number;
+    lng: number;
+  };
 }
 
 const bounds: maplibregl.LngLatBoundsLike = [
@@ -107,6 +112,8 @@ export default function MapLibre({
   weatherCircles,
   onCounterSelect,
   defaultSelectedCounter,
+  defaultZoom = 8,
+  defaultCenter,
 }: MapLibreProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -121,8 +128,8 @@ export default function MapLibre({
     map.current = new maplibregl.Map({
       container: mapContainer.current,
       style: mapStyle,
-      center: [coordinates.lng, coordinates.lat],
-      zoom: 8,
+      center: [defaultCenter?.lng || coordinates.lng, defaultCenter?.lat || coordinates.lat],
+      zoom: defaultZoom,
       maxBounds: bounds,
       maxZoom: 18,
       attributionControl: false

@@ -1,6 +1,6 @@
 "use client";
 import type { BikeCounter } from "@prisma/client";
-import CounterSkeleton from "./CounterSkeleton";
+import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
 import { Chart } from "react-chartjs-2";
 import {
   Chart as ChartJS,
@@ -15,7 +15,7 @@ import {
   BarController,
   LineController,
 } from "chart.js";
-import { PreloadedCounterData } from "../app/page";
+import { PreloadedCounterDetailsData } from "@/types/counters/details";
 import { useEffect, useState } from "react";
 
 ChartJS.register(
@@ -32,13 +32,13 @@ ChartJS.register(
 
 interface CounterDailyBarChartProps {
   counter: BikeCounter | null;
-  preloadedData: PreloadedCounterData | null;
+  dailyBarStats: PreloadedCounterDetailsData["dailyBarStats"] | null;
   currentYear: string;
 }
 
 export default function CounterDailyBarChart({
   counter,
-  preloadedData,
+  dailyBarStats,
   currentYear,
 }: CounterDailyBarChartProps) {
   const [hiddenDatasets, setHiddenDatasets] = useState<{
@@ -58,7 +58,7 @@ export default function CounterDailyBarChart({
     }));
   }, [counter]);
 
-  if (!counter || !preloadedData) return <CounterSkeleton />;
+  if (!counter || !dailyBarStats) return <CounterSkeleton />;
 
   const formatDate = (date: string) => {
     const utcDate = new Date(date);
@@ -69,13 +69,13 @@ export default function CounterDailyBarChart({
     });
   };
 
-  if (!preloadedData?.dailyBarStats?.year?.length) {
+  if (!dailyBarStats?.year?.length) {
     return <CounterSkeleton />;
   }
 
   const filteredData = hideZeroDays
-    ? preloadedData.dailyBarStats.year.filter(d => d.value > 0)
-    : preloadedData.dailyBarStats.year;
+    ? dailyBarStats.year.filter(d => d.value > 0)
+    : dailyBarStats.year;
 
   const chartData: ChartData = {
     labels: filteredData.map((d) => formatDate(d.day)),
@@ -93,7 +93,7 @@ export default function CounterDailyBarChart({
       {
         label: "Moyenne globale",
         data: Array(filteredData.length).fill(
-          preloadedData.dailyBarStats.globalAverage
+          dailyBarStats.globalAverage
         ),
         type: "line",
         borderColor: "#3b82f6",
@@ -105,7 +105,7 @@ export default function CounterDailyBarChart({
       {
         label: "Moyenne jours actifs",
         data: Array(filteredData.length).fill(
-          preloadedData.dailyBarStats.activeDaysAverage
+          dailyBarStats.activeDaysAverage
         ),
         type: "line",
         borderColor: "#f59e0b",

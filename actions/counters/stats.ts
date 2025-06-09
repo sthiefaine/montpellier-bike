@@ -1,3 +1,4 @@
+"use server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import {
@@ -5,8 +6,9 @@ import {
   getHoursOfDay,
   getYesterdayBoundsParis,
 } from "./dateHelpers";
+import { PreloadedCounterDetailsData } from "@/types/counters/details";
 
-export async function getCounterStats(counterId: string) {
+export async function getCounterStats(counterId: string): Promise<PreloadedCounterDetailsData['counterStats']> {
   const now = new Date();
 
   // Calcul des plages pour avant-hier et hier en heure de Paris

@@ -3,8 +3,8 @@
 import { getGlobalStats } from "@/actions/counters/stats";
 import { getDailyStats } from "@/actions/dailyStats";
 import NumberFlow from "@/components/NumberFlow";
-import StatsBar from "@/components/StatsBar";
-import WeatherMessage from "@/components/WeatherMessage";
+import StatsBar from "@/components/Stats/Counters/StatsBar";
+import WeatherMessage from "@/components/Weathers/WeatherMessage";
 import Image from "next/image";
 
 const getDailyStatsData = async () => {

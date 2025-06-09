@@ -11,8 +11,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import CounterSkeleton from "./CounterSkeleton";
-import { PreloadedCounterData } from "../app/page";
+import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
+import { PreloadedCounterData } from "@/types/counters/counters";
 
 interface CounterHourlyStatsProps {
   counter: BikeCounter | null;
@@ -104,7 +104,7 @@ export default function CounterHourlyStats({
   };
 
   return (
-    <div className="space-y-2">
+    <div className="bg-white rounded-xl shadow-lg p-6">
       <h3 className="text-lg font-semibold text-gray-900 pl-4">
         Statistiques horaires
       </h3>

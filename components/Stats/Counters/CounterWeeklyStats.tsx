@@ -12,12 +12,12 @@ import {
   Legend,
   ReferenceLine,
 } from "recharts";
-import CounterSkeleton from "./CounterSkeleton";
-import { PreloadedCounterData } from "../app/page";
+import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
+import { PreloadedCounterData } from "@/types/counters/counters";
 
 interface CounterWeeklyStatsProps {
   counter: BikeCounter | null;
-  preloadedData: PreloadedCounterData | null;
+  weeklyStats: PreloadedCounterData["weeklyStats"] | null;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -40,8 +40,11 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
-export default function CounterWeeklyStats({ counter, preloadedData }: CounterWeeklyStatsProps) {
-  if (!counter || !preloadedData) return <CounterSkeleton />;
+export default function CounterWeeklyStats({
+  counter,
+  weeklyStats,
+}: CounterWeeklyStatsProps) {
+  if (!counter || !weeklyStats) return <CounterSkeleton />;
 
   const formatValue = (value: number) => {
     return new Intl.NumberFormat("fr-FR").format(value);
@@ -52,19 +55,20 @@ export default function CounterWeeklyStats({ counter, preloadedData }: CounterWe
   };
 
   const globalAverage = Math.round(
-    (preloadedData.weeklyStats.currentWeekAverage + preloadedData.weeklyStats.lastWeekAverage) / 2
+    (weeklyStats.currentWeekAverage + weeklyStats.lastWeekAverage) /
+      2
   );
 
   const ensureAllDays = (data: { day: string; value: number | null }[]) => {
-    const allDays = ['lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim'];
-    return allDays.map(day => {
-      const existingDay = data.find(d => d.day === day);
+    const allDays = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"];
+    return allDays.map((day) => {
+      const existingDay = data.find((d) => d.day === day);
       return existingDay || { day, value: null };
     });
   };
 
   return (
-    <div className="space-y-2">
+    <div className="bg-white rounded-xl shadow-lg p-6">
       <h3 className="text-lg font-semibold text-gray-900 pl-4">
         Statistiques hebdomadaires
       </h3>
@@ -72,10 +76,12 @@ export default function CounterWeeklyStats({ counter, preloadedData }: CounterWe
         <div className="h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart
-              data={ensureAllDays(preloadedData.weeklyStats.currentWeek).map(day => ({
-                ...day,
-                day: formatDay(day.day)
-              }))}
+              data={ensureAllDays(weeklyStats.currentWeek).map(
+                (day) => ({
+                  ...day,
+                  day: formatDay(day.day),
+                })
+              )}
               margin={{ top: 5, right: 0, left: 0, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -124,10 +130,12 @@ export default function CounterWeeklyStats({ counter, preloadedData }: CounterWe
                 type="monotone"
                 dataKey="value"
                 name="Semaine dernière"
-                data={ensureAllDays(preloadedData.weeklyStats.lastWeek).map(day => ({
-                  ...day,
-                  day: formatDay(day.day)
-                }))}
+                data={ensureAllDays(weeklyStats.lastWeek).map(
+                  (day) => ({
+                    ...day,
+                    day: formatDay(day.day),
+                  })
+                )}
                 stroke="#22c55e"
                 strokeWidth={2}
                 dot={false}

@@ -1,9 +1,9 @@
 "use client";
 
 import type { BikeCounter } from "@prisma/client";
-import CounterSkeleton from "./CounterSkeleton";
-import NumberFlow from "./NumberFlow";
-import { PreloadedCounterData } from "../app/page";
+import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
+import NumberFlow from "@/components/NumberFlow";
+import { PreloadedCounterData } from "@/types/counters/counters";
 
 interface CounterDailyStatsProps {
   counter: BikeCounter | null;

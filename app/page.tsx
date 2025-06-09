@@ -5,8 +5,8 @@ import path from "path";
 import { cache } from "react";
 import maplibregl from "maplibre-gl";
 
-import CounterDetailsSection from "@/components/CounterDetailsSection";
-import HeroSection from "@/components/HeroSection";
+import CounterDetailsSection from "@/components/Sections/CounterDetailsSection";
+import HeroSection from "@/components/Sections/HeroSection";
 
 import { BikeCounter } from "@prisma/client";
 
@@ -16,43 +16,7 @@ import { getHourlyStats } from "@/actions/counters/hourly";
 import { getWeeklyStats } from "@/actions/counters/weekly";
 import { getYearlyStats } from "@/actions/counters/yearly";
 import { getDailyStatsForYear } from "@/actions/counters/daily";
-
-export interface PreloadedCounterData {
-  counterId: string;
-  counterStats: {
-    maxDay: { date: Date; value: number } | null;
-    beforeYesterday: number;
-    yesterday: number;
-    totalPassages: number;
-    firstPassageDate: Date | null;
-    lastPassageDate: Date | null;
-    lastPassageBeforeYesterday: Date | null;
-    lastPassageYesterday: Date | null;
-  };
-  hourlyStats: {
-    monday: { hour: number; value: number }[];
-    tuesday: { hour: number; value: number }[];
-    wednesday: { hour: number; value: number }[];
-    thursday: { hour: number; value: number }[];
-    friday: { hour: number; value: number }[];
-    saturday: { hour: number; value: number }[];
-    sunday: { hour: number; value: number }[];
-  };
-  weeklyStats: {
-    currentWeek: { day: string; value: number | null }[];
-    lastWeek: { day: string; value: number | null }[];
-    currentWeekAverage: number;
-    lastWeekAverage: number;
-    globalAverage: number;
-  };
-  yearlyStats: { year: number; total: number }[];
-  dailyBarStats: {
-    year: { day: string; value: number }[];
-    globalAverage: number;
-    activeDaysAverage: number;
-  };
-  counterIsActive: boolean;
-}
+import { PreloadedCounterData } from "@/types/counters/counters";
 
 const getMapStyle = cache(async () => {
   const data = await fs.readFile(
@@ -80,7 +44,7 @@ const preloadAllCounterData = cache(
     for (const counter of counters) {
       try {
         const [
-          counterStats,
+          counterStats ,
           hourlyStats,
           weeklyStats,
           yearlyStats,

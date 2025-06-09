@@ -1,8 +1,8 @@
 "use client";
 
 import type { BikeCounter } from "@prisma/client";
-import CounterSkeleton from "./CounterSkeleton";
-import { PreloadedCounterData } from "../app/page";
+import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
+import { PreloadedCounterData } from "@/types/counters/counters";
 import Link from "next/link";
 
 interface CounterDetailsProps {
@@ -74,26 +74,28 @@ export default function CounterDetails({
       </div>
       <div className="flex flex-col gap-1">
         <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 p-3 rounded-lg h-[60px] transition-all duration-200 hover:shadow-md hover:scale-[1.02]">
-          <Link 
-            href={`./counter/${counter.id}`} 
-            className="block h-full w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+          <Link
+            href={`/counters/${counter.serialNumber}`}
+            className="h-full w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
           >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-5 w-5" 
-              viewBox="0 0 20 20" 
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              viewBox="0 0 20 20"
               fill="currentColor"
             >
-              <path 
-                fillRule="evenodd" 
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" 
-                clipRule="evenodd" 
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                clipRule="evenodd"
               />
             </svg>
             <span className="text-sm font-medium">Voir</span>
           </Link>
         </div>
-        <p className="text-xs text-center text-gray-600">Afficher les détails</p>
+        <p className="text-xs text-center text-gray-600">
+          Afficher les détails
+        </p>
       </div>
     </div>
   );

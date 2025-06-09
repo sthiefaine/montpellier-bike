@@ -1,19 +1,11 @@
+"use server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import {
-  getStartOfMonth,
-  getEndOfMonth,
-  getStartOfDay,
-  getEndOfDay,
-  getStartOfYear,
-  getEndOfYear,
-} from "./dateHelpers";
 
 export async function getDailyStatsForYear(counterId: string) {
   const now = new Date();
   const currentYear = now.getFullYear();
 
-  // Créer les dates directement sans passer par les helpers
   const startOfYear = `${currentYear}-01-01`;
   const endOfYear = `${currentYear}-12-31`;
 

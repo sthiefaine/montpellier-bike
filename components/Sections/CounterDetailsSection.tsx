@@ -1,16 +1,16 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import MapLibre from "./MapLibre";
-import CounterDetails from "./CounterDetails";
-import CounterDailyStats from "@/components/CounterDailyStats";
-import CounterYearlyStats from "@/components/CounterYearlyStats";
-import CounterHourlyStats from "@/components/CounterHourlyStats";
-import CounterWeeklyStats from "@/components/CounterWeeklyStats";
+import { useState } from "react";
+import MapLibre from "@/components/Maps/MapLibre";
+import CounterDetails from "@/components/Stats/Counters/CounterDetails";
+import CounterDailyStats from "@/components/Stats/Counters/CounterDailyStats";
+import CounterYearlyStats from "@/components/Stats/Counters/CounterYearlyStats";
+import CounterHourlyStats from "@/components/Stats/Counters/CounterHourlyStats";
+import CounterWeeklyStats from "@/components/Stats/Counters/CounterWeeklyStats";
 import type { BikeCounter } from "@prisma/client";
 import type { StyleSpecification } from "maplibre-gl";
-import CounterDailyBarChart from "./CounterDailyBarChart";
-import { PreloadedCounterData } from "../app/page";
+import CounterDailyBarChart from "@/components/Stats/Counters/CounterDailyBarChart";
+import { PreloadedCounterData } from "@/types/counters/counters";
 
 interface CounterDetailsSectionProps {
   mapStyle: StyleSpecification;
@@ -76,13 +76,11 @@ export default function CounterDetailsSection({
         </section>
         <section className="bg-white rounded-xl shadow-lg p-4 @container col-span-1 sm:col-span-2 lg:col-span-3">
           <div className="h-[calc(60vh-8rem)]">
-            <Suspense fallback={<div>Loading...</div>}>
               <CounterDailyBarChart
                 counter={selectedCounter}
-                preloadedData={selectedCounterData}
+                dailyBarStats={selectedCounterData?.dailyBarStats || null}
                 currentYear={currentYear}
               />
-            </Suspense>
           </div>
         </section>
         <section className="bg-white rounded-xl shadow-lg p-4 @container col-span-1 sm:col-span-2">
@@ -97,7 +95,7 @@ export default function CounterDetailsSection({
           <div className="h-[calc(60vh-8rem)]">
             <CounterWeeklyStats
               counter={selectedCounter}
-              preloadedData={selectedCounterData}
+              weeklyStats={selectedCounterData?.weeklyStats || null}
             />
           </div>
         </section>
