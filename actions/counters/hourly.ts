@@ -9,7 +9,7 @@ import {
   getStartOfWeekParis,
   getEndOfWeekParis,
 } from "./dateHelpers";
-import { PreloadedCounterData } from "@/types/counters/counters";
+import { HourlyStats } from "@/types/counters/counters";
 import { HourlyStatsDetailsTypes } from "@/types/counters/details";
 
 export async function getHourlyStats(counterId: string) {
@@ -50,7 +50,7 @@ export async function getHourlyStats(counterId: string) {
 
   const days = [
     "monday",
-    "tuesday", 
+    "tuesday",
     "wednesday",
     "thursday",
     "friday",
@@ -58,16 +58,15 @@ export async function getHourlyStats(counterId: string) {
     "sunday",
   ];
 
-  // Transformer les résultats en structure attendue
-  const result = {} as PreloadedCounterData["hourlyStats"];
-  
+  const result = {} as HourlyStats;
+
   days.forEach((day, index) => {
     // PostgreSQL DOW: 0=Sunday, 1=Monday, etc.
     const pgDayIndex = index === 6 ? 0 : index + 1;
-    
-    result[day as keyof PreloadedCounterData["hourlyStats"]] = weeklyStats
-      .filter(stat => stat.day_of_week === pgDayIndex)
-      .map(stat => ({
+
+    result[day as keyof HourlyStats] = weeklyStats
+      .filter((stat) => stat.day_of_week === pgDayIndex)
+      .map((stat) => ({
         hour: stat.hour,
         value: stat.total,
       }));
@@ -100,11 +99,11 @@ export async function getHourlyDetailsStats(counterId: string) {
 
   // UNE SEULE REQUÊTE pour toutes les données
   const allData = await prisma.$queryRaw<
-    { 
-      year: number; 
-      week: number; 
-      day_of_week: number; 
-      hour: number; 
+    {
+      year: number;
+      week: number;
+      day_of_week: number;
+      hour: number;
       total: number;
       date: Date;
     }[]
@@ -140,7 +139,7 @@ export async function getHourlyDetailsStats(counterId: string) {
   const days = [
     "monday",
     "tuesday",
-    "wednesday", 
+    "wednesday",
     "thursday",
     "friday",
     "saturday",
@@ -149,8 +148,8 @@ export async function getHourlyDetailsStats(counterId: string) {
 
   // Regrouper les données par année et semaine
   const groupedData = new Map<string, typeof allData>();
-  
-  allData.forEach(row => {
+
+  allData.forEach((row) => {
     const key = `${row.year}-${row.week}`;
     if (!groupedData.has(key)) {
       groupedData.set(key, []);
@@ -161,8 +160,8 @@ export async function getHourlyDetailsStats(counterId: string) {
   const allStats: HourlyStatsDetailsTypes[] = [];
 
   for (const [yearWeek, weekData] of groupedData) {
-    const [year, week] = yearWeek.split('-').map(Number);
-    
+    const [year, week] = yearWeek.split("-").map(Number);
+
     // Calculer les dates de début et fin de semaine
     const weekStartDate = getWeekStartDate(year, week);
     const weekEndDate = getEndOfWeekParis(weekStartDate);
@@ -174,10 +173,10 @@ export async function getHourlyDetailsStats(counterId: string) {
 
     // Transformer les données pour cette semaine
     const hourlyStats = {} as Record<(typeof days)[number], any[]>;
-    
+
     days.forEach((day, dayIndex) => {
       const pgDayIndex = dayIndex === 6 ? 0 : dayIndex + 1;
-      
+
       // Créer un tableau de 24 heures avec toutes les valeurs à 0
       const dayStats = Array.from({ length: 24 }, (_, hour) => ({
         hour,
@@ -186,8 +185,8 @@ export async function getHourlyDetailsStats(counterId: string) {
 
       // Remplir avec les vraies valeurs
       weekData
-        .filter(row => row.day_of_week === pgDayIndex)
-        .forEach(row => {
+        .filter((row) => row.day_of_week === pgDayIndex)
+        .forEach((row) => {
           if (row.hour >= 0 && row.hour <= 23) {
             dayStats[row.hour].value = row.total;
           }

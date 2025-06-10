@@ -13,11 +13,11 @@ import {
   ReferenceLine,
 } from "recharts";
 import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
-import { PreloadedCounterData } from "@/types/counters/counters";
+import { WeeklyStats } from "@/types/counters/counters";
 
 interface CounterWeeklyStatsProps {
   counter: BikeCounter | null;
-  weeklyStats: PreloadedCounterData["weeklyStats"] | null;
+  weeklyStats: WeeklyStats | null;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {

@@ -2,11 +2,11 @@
 
 import type { BikeCounter } from "@prisma/client";
 import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
-import { PreloadedCounterData } from "@/types/counters/counters";
+import { YearlyStats } from "@/types/counters/counters";
 
 interface CounterYearlyStatsProps {
   counter: BikeCounter | null;
-  preloadedData: PreloadedCounterData | null;
+  yearlyStats: YearlyStats[] | [];
 }
 
 const COLORS: Record<string, string> = {
@@ -23,9 +23,8 @@ const COLORS: Record<string, string> = {
 
 export default function CounterYearlyStats({
   counter,
-  preloadedData,
+  yearlyStats,
 }: CounterYearlyStatsProps) {
-  const yearlyStats = preloadedData?.yearlyStats;
   const filteredYearlyStats = yearlyStats?.filter(
     (stat) => stat.year <= new Date().getFullYear()
   );

@@ -5,24 +5,21 @@ import { getStartOfDay, getEndOfDay } from "@/actions/counters/dateHelpers";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string, date: string }> }
 ) {
-  const searchParams = request.nextUrl?.searchParams;
-  const fromDate = searchParams?.get("fromDate") || "2025-06-03";
-  const toDate = searchParams?.get("toDate") || "2025-06-03";
+  const date = (await params).date || "2025-06-09";
   const numero_serie = (await params).id || "X2H21070351";
+  const startDate = getStartOfDay(new Date(date));
+  const endDate = getEndOfDay(new Date(date));
 
-  const startDate = getStartOfDay(new Date(fromDate));
-  const endDate = getEndOfDay(new Date(toDate));
-
-  const openDataStartDate = new Date(fromDate);
+  const openDataStartDate = new Date(date);
   const openDataStartDateParis = getStartOfDay(openDataStartDate);
 
-  const openDataEndDate = new Date(toDate);
+  const openDataEndDate = new Date(date);
   const openDataEndDateParis = getEndOfDay(openDataEndDate);
 
-  const openDataStartDateISO = openDataStartDateParis.toISOString();
-  const openDataEndDateISO = openDataEndDateParis.toISOString();
+  const openDataStartDateISO = openDataStartDateParis.toISOString().slice(0, 19);
+  const openDataEndDateISO = openDataEndDateParis.toISOString().slice(0, 19);
 
   const counter = await prisma.bikeCounter.findFirst({
     where: {
@@ -48,11 +45,9 @@ export async function GET(
 
   let openDataValues: { index: string[]; values: number[] } = { index: [], values: [] };
   let openDataSomme = 0;
+  let url = `https://portail-api-data.montpellier3m.fr/ecocounter_timeseries/urn%3Angsi-ld%3AEcoCounter%3A${numero_serie}/attrs/intensity?fromDate=${openDataStartDateISO}&toDate=${openDataEndDateISO}`;
 
   try {
-    const url = `https://portail-api-data.montpellier3m.fr/ecocounter_timeseries/urn%3Angsi-ld%3AEcoCounter%3A${numero_serie}/attrs/intensity?fromDate=${openDataStartDateISO}&toDate=${openDataEndDateISO}`;
-    console.log("URL:", url);
-
     const openData = await fetch(url);
 
     if (!openData.ok) {
@@ -75,12 +70,13 @@ export async function GET(
     attrName: "intensity",
     entityId: `urn:ngsi-ld:EcoCounter:${numero_serie}`,
     entityType: "EcoCounter",
-    index: timeseries.map((ts) => ts.date.toISOString()),
+    index: timeseries.map((ts) => ts.date),
     values: timeseries.map((ts) => ts.value),
     openDataIndex: openDataValues.index,
     openDataValues: openDataValues.values,
     openDataSomme,
     debug: {
+      urlOpenData: url,
       startDate,
       endDate,
       openDataStartDateParis,

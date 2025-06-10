@@ -1,23 +1,21 @@
 "use server";
-
-import { promises as fs } from "fs";
-import path from "path";
 import { cache } from "react";
-import maplibregl from "maplibre-gl";
 
 import CounterDetailsSection from "@/components/Sections/CounterDetailsSection";
 import HeroSection from "@/components/Sections/HeroSection";
-
 import { BikeCounter } from "@prisma/client";
-
 import { getCounters, getCounterIsActive } from "@/actions/counters/base";
 import { getCounterStats } from "@/actions/counters/stats";
 import { getHourlyStats } from "@/actions/counters/hourly";
 import { getWeeklyStats } from "@/actions/counters/weekly";
 import { getYearlyStats } from "@/actions/counters/yearly";
-import { getDailyStatsForYear } from "@/actions/counters/daily";
+import {
+  getDailyStatsForYear,
+  getGlobalDailyStatsForYear,
+} from "@/actions/counters/daily";
 import { PreloadedCounterData } from "@/types/counters/counters";
 import { getMapStyle } from "@/actions/map";
+import CounterGlobalDailyBarChart from "@/components/Stats/Counters/CounterGlobalDailyBarChart";
 
 const getDefaultSelectedCounter = cache(async () => {
   const counters = (await getCounters()) as BikeCounter[];
@@ -31,18 +29,21 @@ const getDefaultSelectedCounter = cache(async () => {
 });
 
 const preloadAllCounterData = cache(
-  async (counters: any[]): Promise<PreloadedCounterData[]> => {
-    const preloadedData: PreloadedCounterData[] = [];
+  async (counters: any[]): Promise<PreloadedCounterData> => {
+    const preloadedData: PreloadedCounterData = {
+      counters: [],
+    };
 
     for (const counter of counters) {
       try {
         const [
-          counterStats ,
+          counterStats,
           hourlyStats,
           weeklyStats,
           yearlyStats,
           dailyBarStats,
           counterIsActive,
+          counterGlobalDailyBarStats,
         ] = await Promise.all([
           getCounterStats(counter.id),
           getHourlyStats(counter.id),
@@ -50,9 +51,12 @@ const preloadAllCounterData = cache(
           getYearlyStats(counter.id),
           getDailyStatsForYear(counter.id),
           getCounterIsActive(counter.id),
+          getGlobalDailyStatsForYear(),
         ]);
 
-        preloadedData.push({
+        preloadedData.counterGlobalDailyBarStats = counterGlobalDailyBarStats;
+
+        preloadedData.counters.push({
           counterId: counter.id,
           counterStats,
           hourlyStats,
@@ -89,7 +93,7 @@ export default async function Home() {
   const countersWithIsActive = counters.map((counter: BikeCounter) => ({
     ...counter,
     isActive:
-      preloadedData.find((data) => data.counterId === counter.id)
+      preloadedData.counters.find((data) => data.counterId === counter.id)
         ?.counterIsActive || false,
   }));
 
@@ -108,6 +112,16 @@ export default async function Home() {
                 Montpellier. Sélectionnez un compteur sur la carte pour voir son
                 historique et ses tendances.
               </p>
+              <div className="grid grid-cols-1 gap-4 mt-6">
+                <div className="h-[calc(60vh-8rem)]">
+                <CounterGlobalDailyBarChart
+                  counterGlobalDailyBarStats={
+                    preloadedData.counterGlobalDailyBarStats || null
+                  }
+                  currentYear={currentYear}
+                />
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
               <div className="lg:col-span-10 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px] md:min-h-[600px]">

@@ -29,7 +29,7 @@ export type DailyStats = {
 export async function getDailyStats(): Promise<DailyStats> {
   const now = new Date();
   const today = getStartOfDay(now);
-  const tomorrow = getEndOfDay(now);
+  const tomorrow = getStartOfDay(new Date(today.getTime() + 24 * 60 * 60 * 1000));
   const dayBeforeYesterdayBounds = getBeforeYesterdayBoundsParis(now);
   const dayBeforeYesterday = dayBeforeYesterdayBounds.start;
   const dayBeforeYesterdayEnd = dayBeforeYesterdayBounds.end;
@@ -37,34 +37,20 @@ export async function getDailyStats(): Promise<DailyStats> {
   const yesterday = yesterdayBounds.start;
   const yesterdayEnd = yesterdayBounds.end;
 
-  // Statistiques des passages
   const [dayBeforeYesterdayStats, yesterdayStats] = await Promise.all([
-    prisma.counterTimeseries.aggregate({
-      where: {
-        date: {
-          gte: dayBeforeYesterday,
-          lte: dayBeforeYesterdayEnd,
-        },
-      },
-      _sum: {
-        value: true,
-      },
-    }),
-    prisma.counterTimeseries.aggregate({
-      where: {
-        date: {
-          gte: yesterday,
-          lte: today,
-        },
-      },
-      _sum: {
-        value: true,
-      },
-    }),
+    prisma.$queryRaw<{ total: number }[]>`
+      SELECT COALESCE(SUM(value), 0)::integer as total
+      FROM "CounterTimeseries"
+      WHERE date_trunc('day', date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = date_trunc('day', ${dayBeforeYesterday} AT TIME ZONE 'Europe/Paris')
+    `,
+    prisma.$queryRaw<{ total: number }[]>`
+      SELECT COALESCE(SUM(value), 0)::integer as total
+      FROM "CounterTimeseries"
+      WHERE date_trunc('day', date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = date_trunc('day', ${yesterday} AT TIME ZONE 'Europe/Paris')
+    `,
   ]);
 
   // Récupération des données météo
-
   const todayWeather = await prisma.weatherTimeseries.findMany({
     where: {
       date: {
@@ -122,8 +108,8 @@ export async function getDailyStats(): Promise<DailyStats> {
 
   return {
     passages: {
-      dayBeforeYesterday: Number(dayBeforeYesterdayStats._sum?.value || 0),
-      yesterday: Number(yesterdayStats._sum?.value || 0),
+      dayBeforeYesterday: Number(dayBeforeYesterdayStats[0].total),
+      yesterday: Number(yesterdayStats[0].total),
     },
     weather: {
       dayBeforeYesterday: {

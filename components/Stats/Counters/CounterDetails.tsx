@@ -2,19 +2,19 @@
 
 import type { BikeCounter } from "@prisma/client";
 import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
-import { PreloadedCounterData } from "@/types/counters/counters";
+import { CounterStats } from "@/types/counters/counters";
 import Link from "next/link";
 
 interface CounterDetailsProps {
   counter: BikeCounter | null;
-  preloadedData: PreloadedCounterData | null;
+  counterStats: CounterStats | null;
 }
 
 export default function CounterDetails({
   counter,
-  preloadedData,
+  counterStats,
 }: CounterDetailsProps) {
-  const stats = preloadedData?.counterStats;
+  const stats = counterStats;
 
   if (!counter || !stats) return <CounterSkeleton />;
 

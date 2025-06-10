@@ -16,7 +16,7 @@ interface CounterDetailsSectionProps {
   mapStyle: StyleSpecification;
   counters: (BikeCounter & { isActive: boolean })[];
   defaultSelectedCounter: BikeCounter | null;
-  preloadedData: PreloadedCounterData[];
+  preloadedData: PreloadedCounterData;
   currentYear: string;
 }
 
@@ -32,7 +32,7 @@ export default function CounterDetailsSection({
   );
 
   const selectedCounterData = selectedCounter
-    ? preloadedData.find((data) => data.counterId === selectedCounter.id) ||
+    ? preloadedData.counters.find((data) => data.counterId === selectedCounter.id) ||
       null
     : null;
 
@@ -54,7 +54,7 @@ export default function CounterDetailsSection({
           <div className="h-[calc(60vh-8rem)]">
             <CounterDetails
               counter={selectedCounter}
-              preloadedData={selectedCounterData}
+              counterStats={selectedCounterData?.counterStats || null}
             />
           </div>
         </section>
@@ -62,7 +62,7 @@ export default function CounterDetailsSection({
           <div className="h-[calc(60vh-8rem)]">
             <CounterDailyStats
               counter={selectedCounter}
-              preloadedData={selectedCounterData}
+              counterStats={selectedCounterData?.counterStats || null}
             />
           </div>
         </section>
@@ -70,7 +70,7 @@ export default function CounterDetailsSection({
           <div className="h-[calc(60vh-8rem)]">
             <CounterYearlyStats
               counter={selectedCounter}
-              preloadedData={selectedCounterData}
+              yearlyStats={selectedCounterData?.yearlyStats || []}
             />
           </div>
         </section>
@@ -87,7 +87,7 @@ export default function CounterDetailsSection({
           <div className="h-[calc(60vh-8rem)]">
             <CounterHourlyStats
               counter={selectedCounter}
-              preloadedData={selectedCounterData}
+              hourlyStats={selectedCounterData?.hourlyStats || null}
             />
           </div>
         </section>

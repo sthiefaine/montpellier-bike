@@ -57,6 +57,7 @@ export async function getYearlyStats(counterId: string) {
     total: Number(stat.total),
   }));
 }
+
 export async function getYearlyProgressStats(counterId: string) {
   const firstPassage = await prisma.counterTimeseries.findFirst({
     where: {

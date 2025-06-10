@@ -12,11 +12,11 @@ import {
   Legend,
 } from "recharts";
 import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
-import { PreloadedCounterData } from "@/types/counters/counters";
+import { HourlyStats } from "@/types/counters/counters";
 
 interface CounterHourlyStatsProps {
   counter: BikeCounter | null;
-  preloadedData: PreloadedCounterData | null;
+  hourlyStats: HourlyStats | null;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -69,9 +69,9 @@ const DAY_MAP = {
 
 export default function CounterHourlyStats({
   counter,
-  preloadedData,
+  hourlyStats,
 }: CounterHourlyStatsProps) {
-  if (!counter || !preloadedData) return <CounterSkeleton />;
+  if (!counter || !hourlyStats) return <CounterSkeleton />;
 
   const formatValue = (value: number) => {
     return new Intl.NumberFormat("fr-FR").format(value);
@@ -84,7 +84,7 @@ export default function CounterHourlyStats({
 
   const hasData = (day: string) => {
     const dayData =
-      preloadedData.hourlyStats[day as keyof typeof preloadedData.hourlyStats];
+      hourlyStats[day as keyof typeof hourlyStats];
     return dayData && dayData.some((stat) => stat.value > 0);
   };
 
@@ -118,8 +118,8 @@ export default function CounterHourlyStats({
                   ...Object.fromEntries(
                     visibleDays.map((day) => [
                       day.key,
-                      preloadedData.hourlyStats[
-                        day.key as keyof typeof preloadedData.hourlyStats
+                      hourlyStats[
+                        day.key as keyof typeof hourlyStats
                       ][hour].value,
                     ])
                   ),

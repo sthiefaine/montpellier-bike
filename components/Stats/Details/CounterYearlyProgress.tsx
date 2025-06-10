@@ -1,11 +1,11 @@
 "use client";
 
 import { BikeCounter } from "@prisma/client";
-import { PreloadedCounterData } from "@/types/counters/counters";
+import { YearlyProgressStats } from "@/types/counters/counters";
 
 interface CounterYearlyProgressProps {
   counter: BikeCounter;
-  yearlyProgressStats: PreloadedCounterData["yearlyProgressStats"];
+  yearlyProgressStats: YearlyProgressStats[];
 }
 
 const COLORS: Record<string, string> = {

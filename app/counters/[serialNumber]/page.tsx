@@ -1,9 +1,5 @@
 "use server";
 import { notFound } from "next/navigation";
-import { promises as fs } from "fs";
-import path from "path";
-import { cache } from "react";
-import maplibregl from "maplibre-gl";
 import CounterYearlyProgress from "@/components/Stats/Details/CounterYearlyProgress";
 import CounterDetailsMap from "@/components/Stats/Details/CounterDetailsMap";
 import CounterDetailsDailyStats from "@/components/Stats/Details/CounterDetailsDailyStats";
@@ -151,7 +147,7 @@ export default async function CounterDetailsPage({
           <div className="col-span-12 md:col-span-12 lg:col-span-12 xl:col-span-5">
             <CounterYearlyProgress
               counter={counter}
-              yearlyProgressStats={preloadedData.yearlyProgressStats}
+              yearlyProgressStats={preloadedData.yearlyProgressStats || []}
             />
           </div>
 
