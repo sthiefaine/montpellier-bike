@@ -5,6 +5,11 @@
 
 const TIMEZONE = "Europe/Paris";
 
+export const getParisCurrentTime = async (): Promise<Date> => {
+  const currentTime = new Date().toLocaleString("en-US", { timeZone: TIMEZONE });
+  return new Date(currentTime);
+};
+
 /**
  * Obtient le début d'une journée en heure de Paris
  * @param date Date de référence

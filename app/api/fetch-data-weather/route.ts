@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { defaultCenters } from "@/lib/defaultCenters";
+import { getBeforeYesterdayBoundsParis } from "@/actions/counters/dateHelpers";
 
 type WeatherRecord = {
   zone: string;
@@ -46,21 +47,6 @@ type WeatherRecord = {
 
 function toISODate(date: Date) {
   return date.toISOString().slice(0, 10);
-}
-
-function getYesterdayStart() {
-  const now = new Date();
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  yesterday.setHours(0, 0, 0, 0);
-  return yesterday.toISOString();
-}
-
-function getTodayEnd() {
-  const now = new Date();
-  const today = new Date(now);
-  today.setHours(23, 59, 59, 999);
-  return today.toISOString();
 }
 
 const HOURLY = [
@@ -116,9 +102,7 @@ function getApiUrl(lat: number, lng: number, from: Date, to: Date) {
     daily: DAILY.join(","),
   });
 
-  const beforeYesterday = new Date();
-  beforeYesterday.setDate(beforeYesterday.getDate() - 2);
-  beforeYesterday.setHours(0, 0, 0, 0);
+  const beforeYesterday = getBeforeYesterdayBoundsParis().start;
 
   const baseUrl =
     from < beforeYesterday
@@ -300,16 +284,15 @@ async function storeWeatherData(
 
 export async function GET() {
   try {
-    const from = getYesterdayStart();
-    const to = getTodayEnd();
+    const { start: from, end: to } = getBeforeYesterdayBoundsParis();
     let totalInserted = 0;
 
     for (const [zone, center] of Object.entries(defaultCenters)) {
       const data = await fetchWeather(
         center.lat,
         center.lng,
-        new Date(from),
-        new Date(to)
+        from,
+        to
       );
       totalInserted += await storeWeatherData(zone, center, data);
     }

@@ -128,3 +128,52 @@ export async function getYearlyProgressStats(counterId: string) {
 
   return stats;
 }
+
+export async function getGlobalYearlyStats() {
+  const firstPassage = await prisma.counterTimeseries.findFirst({
+    orderBy: {
+      date: "asc",
+    },
+  });
+
+  if (!firstPassage) {
+    return [];
+  }
+
+  const lastPassage = await prisma.counterTimeseries.findFirst({
+    orderBy: {
+      date: "desc",
+    },
+  });
+
+  const startYear = firstPassage.date.getFullYear();
+  const endYear = lastPassage?.date.getFullYear() || new Date().getFullYear();
+
+  const yearlyStats = await prisma.$queryRaw<{ year: string; total: bigint }[]>(
+    Prisma.sql`
+      WITH years AS (
+        SELECT generate_series(
+          ${startYear}::integer,
+          ${endYear}::integer
+        ) as year
+      ),
+      yearly_stats AS (
+        SELECT 
+          years.year::text as year,
+          COALESCE(SUM(value), 0)::bigint as total
+        FROM years
+        LEFT JOIN "CounterTimeseries" ON 
+          EXTRACT(YEAR FROM "CounterTimeseries".date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = years.year
+        GROUP BY years.year
+      )
+      SELECT year, total
+      FROM yearly_stats
+      ORDER BY year
+    `
+  );
+
+  return yearlyStats.map((stat: { year: string; total: bigint }) => ({
+    year: parseInt(stat.year),
+    total: Number(stat.total),
+  }));
+}

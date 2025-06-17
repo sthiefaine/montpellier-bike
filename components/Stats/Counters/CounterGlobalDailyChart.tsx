@@ -8,21 +8,30 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  ReferenceLine,
+  Cell,
 } from "recharts";
-import { CounterGlobalDailyStats } from "@/types/counters/counters";
+import { WEEK_DAYS_CONFIG } from "@/helpers";
 
-interface CounterGlobalDailyBarChartProps {
+interface CounterGlobalDailyStats {
+  dailyTotals: { day: string; value: number; count: number }[];
+  globalAverage: number;
+}
+
+interface CounterGlobalDailyChartProps {
   counterGlobalDailyStats: CounterGlobalDailyStats | null;
   currentYear: string;
 }
 
-export default function CounterGlobalDailyBarChart({
+export default function CounterGlobalDailyChart({
   counterGlobalDailyStats,
   currentYear,
-}: CounterGlobalDailyBarChartProps) {
+}: CounterGlobalDailyChartProps) {
   if (!counterGlobalDailyStats?.dailyTotals?.length) {
     return null;
   }
+
+  console.log("test counterGlobalDailyStats", counterGlobalDailyStats);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -33,10 +42,10 @@ export default function CounterGlobalDailyBarChart({
             {label.charAt(0).toUpperCase() + label.slice(1)}
           </p>
           <p className="text-sm text-gray-600">
-            {data.value.toLocaleString()} passages en moyenne
+            {data.value.toLocaleString()} passages au total
           </p>
           <p className="text-xs text-gray-500">
-            Calculé sur {data.count} jours (valeurs &gt; 5 passages)
+            Sur {data.count} jours
           </p>
         </div>
       );
@@ -47,15 +56,12 @@ export default function CounterGlobalDailyBarChart({
   return (
     <div className="mb-2 h-full flex flex-col">
       <h4 className="text-sm font-semibold text-gray-900 pl-4 mb-2">
-        Moyenne des passages par jour ({currentYear})
+        Total des passages par jour ({currentYear})
       </h4>
       <div className="flex-1 bg-white p-2 rounded-lg shadow-sm">
         <div className="w-full h-[calc(100%-40px)]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={counterGlobalDailyStats.dailyTotals}
-              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
-            >
+            <BarChart data={counterGlobalDailyStats.dailyTotals} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis
                 dataKey="day"
@@ -63,9 +69,7 @@ export default function CounterGlobalDailyBarChart({
                 fontSize={10}
                 tickLine={false}
                 axisLine={{ stroke: "#e2e8f0" }}
-                tickFormatter={(value) =>
-                  value.charAt(0).toUpperCase() + value.slice(1)
-                }
+                tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
               />
               <YAxis
                 stroke="#64748b"
@@ -75,7 +79,29 @@ export default function CounterGlobalDailyBarChart({
                 tickFormatter={(value) => value.toLocaleString()}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" fill="#a3e635" radius={[4, 4, 0, 0]} />
+              <ReferenceLine
+                y={counterGlobalDailyStats.globalAverage}
+                stroke="#3b82f6"
+                strokeWidth={2}
+                label={{
+                  value: `Moyenne: ${counterGlobalDailyStats.globalAverage.toLocaleString()}`,
+                  position: "right",
+                  fill: "#3b82f6",
+                  fontSize: 12,
+                  fontWeight: "bold",
+                }}
+              />
+              <Bar
+                dataKey="value"
+                radius={[4, 4, 0, 0]}
+              >
+                {counterGlobalDailyStats.dailyTotals.map((entry) => (
+                  <Cell
+                    key={entry.day}
+                    fill={WEEK_DAYS_CONFIG[entry.day as keyof typeof WEEK_DAYS_CONFIG].color}
+                  />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>

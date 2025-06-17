@@ -55,13 +55,27 @@ export interface CounterData {
   yearlyProgressStats?: YearlyProgressStats;
 }
 
-export interface CounterGlobalDailyBarStats {
-    year: { day: string; value: number }[];
-    globalAverage: number;
-    activeDaysAverage: number;
+export interface DailyTotal {
+  day: string;
+  value: number;
+  count: number;
+}
+
+export interface DailyDataPoint {
+  day: string;
+  value: number;
+}
+
+
+export interface CounterGlobalDailyStats {
+  dailyTotals: DailyTotal[];
+  globalAverage: number;
+  totalDays: number;
+  originalDays: number;
+  filteredDays: number;
 }
 
 export interface PreloadedCounterData {
-  counterGlobalDailyBarStats?: CounterGlobalDailyBarStats;
+  counterGlobalDailyStats?: CounterGlobalDailyStats;
   counters: CounterData[];
 }

@@ -5,11 +5,12 @@ import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
 import { YearlyStats } from "@/types/counters/counters";
 
 interface CounterYearlyStatsProps {
-  counter: BikeCounter | null;
+  counter?: BikeCounter | null;
   yearlyStats: YearlyStats[] | [];
 }
 
 const COLORS: Record<string, string> = {
+  "2018": "#000000",
   "2019": "#8b5cf6",
   "2020": "#ec4899",
   "2021": "#14b8a6",
@@ -29,7 +30,7 @@ export default function CounterYearlyStats({
     (stat) => stat.year <= new Date().getFullYear()
   );
 
-  if (!counter || !yearlyStats) return <CounterSkeleton />;
+  if (!yearlyStats) return <CounterSkeleton />;
 
   const maxTotal = Math.max(...yearlyStats.map((s) => s.total));
 

@@ -62,7 +62,7 @@ export default function CounterYearlyProgress({
           className="absolute top-[-10px] bottom-0 w-[1px] bg-gray-400 z-10"
           style={{
             height: `${barHeight}px`,
-            left: `calc(${maxBarWidth}% + 1.5rem + 1px)`,
+            left: `calc(${maxBarWidth}% + 1.5rem + 3px)`,
           }}
         />
         {sortedStats.map((stat, idx) => {

@@ -7,7 +7,10 @@ import { BikeCounter } from "@prisma/client";
 import { getCounters, getCounterIsActive } from "@/actions/counters/base";
 import { getCounterStats } from "@/actions/counters/stats";
 import { getHourlyStats } from "@/actions/counters/hourly";
-import { getWeeklyStats } from "@/actions/counters/weekly";
+import {
+  getGlobalWeeklyStatsForYear,
+  getWeeklyStats,
+} from "@/actions/counters/weekly";
 import { getYearlyStats } from "@/actions/counters/yearly";
 import {
   getDailyStatsForYear,
@@ -15,7 +18,7 @@ import {
 } from "@/actions/counters/daily";
 import { PreloadedCounterData } from "@/types/counters/counters";
 import { getMapStyle } from "@/actions/map";
-import CounterGlobalDailyBarChart from "@/components/Stats/Counters/CounterGlobalDailyBarChart";
+import GlobalSection from "@/components/Sections/GlobalSection";
 
 const getDefaultSelectedCounter = cache(async () => {
   const counters = (await getCounters()) as BikeCounter[];
@@ -34,6 +37,9 @@ const preloadAllCounterData = cache(
       counters: [],
     };
 
+    const counterGlobalDailyBarStats = await getGlobalDailyStatsForYear();
+    preloadedData.counterGlobalDailyStats = counterGlobalDailyBarStats;
+
     for (const counter of counters) {
       try {
         const [
@@ -43,7 +49,6 @@ const preloadAllCounterData = cache(
           yearlyStats,
           dailyBarStats,
           counterIsActive,
-          counterGlobalDailyBarStats,
         ] = await Promise.all([
           getCounterStats(counter.id),
           getHourlyStats(counter.id),
@@ -51,10 +56,7 @@ const preloadAllCounterData = cache(
           getYearlyStats(counter.id),
           getDailyStatsForYear(counter.id),
           getCounterIsActive(counter.id),
-          getGlobalDailyStatsForYear(),
         ]);
-
-        preloadedData.counterGlobalDailyBarStats = counterGlobalDailyBarStats;
 
         preloadedData.counters.push({
           counterId: counter.id,
@@ -100,6 +102,7 @@ export default async function Home() {
   return (
     <main className="flex flex-col">
       <HeroSection />
+      <GlobalSection />
       <div className="bg-gradient-to-b from-white to-blue-50">
         <div className="container mx-auto px-4 py-6 md:py-8">
           <div className="max-w-[98%] mx-auto">
@@ -112,16 +115,6 @@ export default async function Home() {
                 Montpellier. Sélectionnez un compteur sur la carte pour voir son
                 historique et ses tendances.
               </p>
-              <div className="grid grid-cols-1 gap-4 mt-6">
-                <div className="h-[calc(60vh-8rem)]">
-                <CounterGlobalDailyBarChart
-                  counterGlobalDailyBarStats={
-                    preloadedData.counterGlobalDailyBarStats || null
-                  }
-                  currentYear={currentYear}
-                />
-                </div>
-              </div>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
               <div className="lg:col-span-10 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px] md:min-h-[600px]">
