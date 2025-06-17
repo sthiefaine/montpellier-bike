@@ -120,14 +120,12 @@ export default function MapLibreDetails({
     });
 
     map.current.on("load", () => {
-      // Ajout du marqueur du compteur
       new maplibregl.Marker({
         color: isActive ? "#22c55e" : "#ef4444",
       })
         .setLngLat([counter.longitude, counter.latitude])
         .addTo(map.current!);
 
-      // Ajout d'un cercle autour du compteur
       map.current!.addSource("counter-radius", {
         type: "geojson",
         data: {

@@ -9,18 +9,19 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { CounterGlobalDailyStats } from "@/types/counters/counters";
 
-interface CounterGlobalDailyBarChartProps {
-  counterGlobalDailyStats: CounterGlobalDailyStats | null;
-  currentYear: string;
+interface CounterGlobalDailyAverageStats {
+  dailyAverages: { day: string; value: number; count: number }[];
 }
 
-export default function CounterGlobalDailyBarChart({
-  counterGlobalDailyStats,
-  currentYear,
-}: CounterGlobalDailyBarChartProps) {
-  if (!counterGlobalDailyStats?.dailyTotals?.length) {
+interface CounterGlobalDailyAverageChartProps {
+  counterGlobalDailyAverageStats: CounterGlobalDailyAverageStats | null;
+}
+
+export default function CounterGlobalDailyAverageChart({
+  counterGlobalDailyAverageStats,
+}: CounterGlobalDailyAverageChartProps) {
+  if (!counterGlobalDailyAverageStats?.dailyAverages?.length) {
     return null;
   }
 
@@ -47,15 +48,12 @@ export default function CounterGlobalDailyBarChart({
   return (
     <div className="mb-2 h-full flex flex-col">
       <h4 className="text-sm font-semibold text-gray-900 pl-4 mb-2">
-        Moyenne des passages par jour ({currentYear})
+        Moyenne des passages par jour
       </h4>
       <div className="flex-1 bg-white p-2 rounded-lg shadow-sm">
         <div className="w-full h-[calc(100%-40px)]">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={counterGlobalDailyStats.dailyTotals}
-              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
-            >
+            <BarChart data={counterGlobalDailyAverageStats.dailyAverages} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis
                 dataKey="day"
@@ -63,9 +61,7 @@ export default function CounterGlobalDailyBarChart({
                 fontSize={10}
                 tickLine={false}
                 axisLine={{ stroke: "#e2e8f0" }}
-                tickFormatter={(value) =>
-                  value.charAt(0).toUpperCase() + value.slice(1)
-                }
+                tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
               />
               <YAxis
                 stroke="#64748b"
@@ -75,11 +71,15 @@ export default function CounterGlobalDailyBarChart({
                 tickFormatter={(value) => value.toLocaleString()}
               />
               <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="value" fill="#a3e635" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="value"
+                fill="#a3e635"
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
     </div>
   );
-}
+} 

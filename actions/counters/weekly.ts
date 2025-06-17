@@ -128,3 +128,38 @@ export async function getWeeklyStats(counterId: string) {
     globalAverage,
   };
 }
+
+export async function getGlobalWeeklyStatsForYear(year?: string) {
+  const selectedYear = year ? parseInt(year) : new Date().getFullYear();
+  const now = new Date();
+
+  const startDate = new Date(`${selectedYear}-01-01`);
+  const endDate = new Date(`${selectedYear}-12-31`);
+
+  const result = await prisma.$queryRaw<{ week: string; value: number }[]>`
+    WITH RECURSIVE weeks AS (
+      SELECT 
+        date_trunc('week', ${startDate}::date) as week_start
+      UNION ALL
+      SELECT week_start + interval '1 week'
+      FROM weeks
+      WHERE week_start < ${endDate}::date
+    )
+    SELECT 
+      to_char(weeks.week_start, 'YYYY-MM-DD') as week,
+      COALESCE(SUM(ct.value), 0)::integer as value
+    FROM weeks
+    LEFT JOIN "CounterTimeseries" ct ON 
+      date_trunc('week', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = weeks.week_start
+    WHERE weeks.week_start <= CASE 
+      WHEN ${selectedYear} = ${now.getFullYear()} THEN date_trunc('week', (NOW() AT TIME ZONE 'Europe/Paris')::date)
+      ELSE ${endDate}::date
+    END
+    GROUP BY weeks.week_start
+    ORDER BY weeks.week_start ASC
+  `;
+
+  return {
+    year: result,
+  };
+}

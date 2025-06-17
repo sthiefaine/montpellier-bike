@@ -1,24 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getBeforeYesterdayBoundsParis } from "@/actions/counters/dateHelpers";
 
 function toISO(date: Date) {
   return date.toISOString();
-}
-
-function getYesterdayStart() {
-  const now = new Date();
-  const yesterday = new Date(
-    Date.UTC(
-      now.getUTCFullYear(),
-      now.getUTCMonth(),
-      now.getUTCDate() - 1,
-      0,
-      0,
-      0,
-      0
-    )
-  );
-  return yesterday;
 }
 
 async function fetchAndStoreForCounter(
@@ -48,7 +33,6 @@ async function fetchAndStoreForCounter(
     value: data.values[i],
   }));
 
-  // On utilise createMany avec skipDuplicates pour éviter les doublons
   const result = await prisma.counterTimeseries.createMany({
     data: records,
     skipDuplicates: true,
@@ -63,11 +47,10 @@ export async function GET(req: NextRequest) {
     const counterParam = searchParams.get("counter");
     const fromParam = searchParams.get("from");
 
-    const from = fromParam ? new Date(fromParam) : getYesterdayStart();
+    const from = fromParam ? new Date(fromParam) : getBeforeYesterdayBoundsParis().start;
 
     let counters;
     if (counterParam) {
-      // Si on a un paramètre counter, on ne prend que le premier compteur
       const firstCounter = await prisma.bikeCounter.findFirst();
       counters = firstCounter ? [firstCounter] : [];
     } else {
@@ -76,7 +59,6 @@ export async function GET(req: NextRequest) {
 
     let totalInserted = 0;
     for (const counter of counters) {
-      // On récupère le serialNumber1 si il existe et si il commence par une lettre
       const serialNumber =
         counter.serialNumber1 && /^[a-zA-Z]/.test(counter.serialNumber1)
           ? counter.serialNumber1

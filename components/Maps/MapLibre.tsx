@@ -103,6 +103,49 @@ function assignPointsToCircles(
   });
 }
 
+function calculateSpiralOffset(index: number, baseOffset = 0.0001) {
+  const angle = index * 0.5;
+  const radius = baseOffset * (1 + index * 0.2);
+  return {
+    lng: radius * Math.cos(angle),
+    lat: radius * Math.sin(angle)
+  };
+}
+
+function findOverlappingMarkers(markers: { longitude: number; latitude: number }[]) {
+  const overlappingGroups: number[][] = [];
+  const processed = new Set<number>();
+
+  markers.forEach((marker1, i) => {
+    if (processed.has(i)) return;
+    
+    const group = [i];
+    processed.add(i);
+
+    markers.forEach((marker2, j) => {
+      if (i === j || processed.has(j)) return;
+
+      const distance = haversineDistance(
+        marker1.latitude,
+        marker1.longitude,
+        marker2.latitude,
+        marker2.longitude
+      );
+
+      if (distance < 10) {
+        group.push(j);
+        processed.add(j);
+      }
+    });
+
+    if (group.length > 1) {
+      overlappingGroups.push(group);
+    }
+  });
+
+  return overlappingGroups;
+}
+
 export default function MapLibre({
   coordinates,
   mapStyle,
@@ -190,8 +233,11 @@ export default function MapLibre({
     markersRef.current.forEach((marker) => marker.remove());
     markersRef.current = [];
 
+    // Trouver les groupes de marqueurs qui se chevauchent
+    const overlappingGroups = findOverlappingMarkers(counters);
+
     // Créer les nouveaux marqueurs
-    counters.forEach((counter) => {
+    counters.forEach((counter, index) => {
       const isActive = counter.isActive;
       const el = document.createElement("div");
       el.className = "marker";
@@ -207,11 +253,23 @@ export default function MapLibre({
       el.style.border = "2px solid white";
       el.style.boxShadow = "0 0 4px rgba(0,0,0,0.3)";
 
+      // Calculer l'offset si le marqueur fait partie d'un groupe qui se chevauche
+      let offset = { lng: 0, lat: 0 };
+      overlappingGroups.forEach((group, groupIndex) => {
+        const markerIndex = group.indexOf(index);
+        if (markerIndex !== -1) {
+          offset = calculateSpiralOffset(markerIndex);
+        }
+      });
+
       const marker = new maplibregl.Marker({
         element: el,
         anchor: "center",
       })
-        .setLngLat([counter.longitude, counter.latitude])
+        .setLngLat([
+          counter.longitude + offset.lng,
+          counter.latitude + offset.lat
+        ])
         .addTo(map.current!);
 
       marker.getElement().addEventListener("click", () => {
