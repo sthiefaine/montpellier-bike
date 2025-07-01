@@ -112,7 +112,7 @@ export default function MapLibreDetails({
       container: mapContainer.current,
       style: mapStyle,
       center: [counter.longitude, counter.latitude],
-      zoom: 12,
+      zoom: 14,
       interactive: true,
       maxBounds: bounds,
       maxZoom: 18,

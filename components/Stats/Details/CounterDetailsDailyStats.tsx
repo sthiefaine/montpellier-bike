@@ -1,31 +1,23 @@
 "use client";
 
+import { BikeCounter } from "@prisma/client";
 import NumberFlow from "@/components/NumberFlow";
-import {
-  CounterValue,
-  calculateStats,
-  calculateDailyStats,
-} from "@/actions/counters/allData";
 
 interface CounterDetailsDailyStatsProps {
-  allValues: CounterValue[];
+  counterStats: {
+    firstPassageDate: Date | null;
+    lastPassageDate: Date | null;
+    totalPassages: number;
+    maxDay: {
+      date: Date;
+      value: number;
+    } | null;
+  };
 }
 
 export default function CounterDetailsDailyStats({
-  allValues,
+  counterStats,
 }: CounterDetailsDailyStatsProps) {
-  const stats = calculateStats(allValues);
-  const dailyStats = calculateDailyStats(allValues);
-
-  const maxDay =
-    dailyStats.length > 0
-      ? dailyStats.reduce((max, day) => (day.value > max.value ? day : max))
-      : null;
-
-  const firstPassageDate = allValues.length > 0 ? allValues[0].date : null;
-  const lastPassageDate =
-    allValues.length > 0 ? allValues[allValues.length - 1].date : null;
-
   const formatDate = (date: Date) => {
     return new Date(date).toLocaleString("fr-FR", {
       day: "numeric",
@@ -48,8 +40,10 @@ export default function CounterDetailsDailyStats({
           Premier passage
         </p>
         <p className="text-base font-semibold text-blue-700">
-          {firstPassageDate
-            ? formatDate(firstPassageDate) + " " + formatTime(firstPassageDate)
+          {counterStats.firstPassageDate
+            ? formatDate(counterStats.firstPassageDate) +
+              " " +
+              formatTime(counterStats.firstPassageDate)
             : "N/A"}
         </p>
       </div>
@@ -58,8 +52,10 @@ export default function CounterDetailsDailyStats({
           Dernier passage
         </p>
         <p className="text-base font-semibold text-green-700">
-          {lastPassageDate
-            ? formatDate(lastPassageDate) + " " + formatTime(lastPassageDate)
+          {counterStats.lastPassageDate
+            ? formatDate(counterStats.lastPassageDate) +
+              " " +
+              formatTime(counterStats.lastPassageDate)
             : "N/A"}
         </p>
       </div>
@@ -68,23 +64,23 @@ export default function CounterDetailsDailyStats({
           Total des passages
         </p>
         <p className="text-base font-semibold text-purple-700">
-          <NumberFlow value={stats.total} /> passages
+          <NumberFlow value={counterStats.totalPassages} /> passages
         </p>
       </div>
-      {maxDay && (
+      {counterStats.maxDay && (
         <div className="bg-orange-50 p-1 rounded-lg h-[60px]">
-          <p className="text-sm font-medium text-orange-900 mb-1">
-            Jour le plus fréquenté
+        <p className="text-sm font-medium text-orange-900 mb-1">
+          Jour le plus fréquenté
+        </p>
+        <div className="flex flex-row items-center gap-2">
+          <p className="text-base font-semibold text-orange-700">
+            {<NumberFlow value={counterStats.maxDay.value} />}
           </p>
-          <div className="flex flex-row items-center gap-2">
-            <p className="text-base font-semibold text-orange-700">
-              {<NumberFlow value={maxDay.value} />}
-            </p>
-            <span className="text-xs text-orange-500 first-letter:uppercase">
-              {formatDate(maxDay.date)}
-            </span>
-          </div>
+          <span className="text-xs text-orange-500 first-letter:uppercase">
+            {formatDate(counterStats.maxDay.date)}
+          </span>
         </div>
+      </div>
       )}
     </div>
   );
