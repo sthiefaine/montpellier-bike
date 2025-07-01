@@ -5,17 +5,12 @@ import CounterDetailsMap from "@/components/Stats/Details/CounterDetailsMap";
 import CounterDetailsDailyStats from "@/components/Stats/Details/CounterDetailsDailyStats";
 import CounterWeeklyStats from "@/components/Stats/Counters/CounterWeeklyStats";
 import CounterDailyBarChart from "@/components/Stats/Counters/CounterDailyBarChart";
-import { getCounterStats } from "@/actions/counters/stats";
-import { getHourlyDetailsStats } from "@/actions/counters/hourly";
-import { getWeeklyStats } from "@/actions/counters/weekly";
-import { getYearlyProgressStats } from "@/actions/counters/yearly";
-import { getDailyStatsForYear } from "@/actions/counters/daily";
-import { getCounterData, getCounterIsActive } from "@/actions/counters/base";
+import { getCounterData } from "@/actions/counters/base";
 import Link from "next/link";
-import { PreloadedCounterDetailsData } from "@/types/counters/details";
 import CounterDetailsHourlyStats from "@/components/Stats/Details/CounterDetailsHourlyStats";
 import { prisma } from "@/lib/prisma";
 import { getMapStyle } from "@/actions/map";
+import { getAllCounterData } from "@/actions/counters/allData";
 
 export async function generateStaticParams() {
   const counters = await prisma.bikeCounter.findMany({
@@ -50,40 +45,17 @@ export default async function CounterDetailsPage({
     notFound();
   }
 
-  const [
-    mapStyle,
-    counterStats,
-    hourlyStats,
-    weeklyStats,
-    yearlyProgressStats,
-    dailyBarStats,
-    counterIsActive,
-  ] = await Promise.all([
+  const [mapStyle, allData] = await Promise.all([
     getMapStyle(),
-    getCounterStats(counter.id),
-    getHourlyDetailsStats(counter.id),
-    getWeeklyStats(counter.id),
-    getYearlyProgressStats(counter.id),
-    getDailyStatsForYear(counter.id),
-    getCounterIsActive(counter.id),
+    getAllCounterData(counter.id),
   ]);
-
-  const preloadedData: PreloadedCounterDetailsData = {
-    counterId: counter.id,
-    counterStats,
-    hourlyStats,
-    weeklyStats,
-    yearlyProgressStats,
-    dailyBarStats,
-    counterIsActive,
-  };
 
   const currentYear = new Date().getFullYear().toString();
 
   const fixedSerialNumber =
-  counter.serialNumber1 && /^[a-zA-Z]/.test(counter.serialNumber1)
-    ? counter.serialNumber1
-    : counter.serialNumber;
+    counter.serialNumber1 && /^[a-zA-Z]/.test(counter.serialNumber1)
+      ? counter.serialNumber1
+      : counter.serialNumber;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -110,12 +82,12 @@ export default async function CounterDetailsPage({
             <div className="flex items-center gap-2">
               <span
                 className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  counterIsActive
+                  allData.counterIsActive
                     ? "bg-green-100 text-green-800"
                     : "bg-red-100 text-red-800"
                 }`}
               >
-                {counterIsActive ? "Actif" : "Inactif"}
+                {allData.counterIsActive ? "Actif" : "Inactif"}
               </span>
             </div>
           </div>
@@ -130,7 +102,7 @@ export default async function CounterDetailsPage({
               <CounterDetailsMap
                 counter={counter}
                 mapStyle={mapStyle}
-                isActive={counterIsActive}
+                isActive={allData.counterIsActive}
               />
             </div>
           </div>
@@ -140,29 +112,29 @@ export default async function CounterDetailsPage({
               Statistiques générales
             </h2>
             <CounterDetailsDailyStats
-              counterStats={preloadedData.counterStats}
+              allValues={allData.allValues}
             />
           </div>
 
           <div className="col-span-12 md:col-span-12 lg:col-span-12 xl:col-span-5">
             <CounterYearlyProgress
               counter={counter}
-              yearlyProgressStats={preloadedData.yearlyProgressStats || []}
+              allValues={allData.allValues}
             />
           </div>
 
           <div className="col-span-12">
-            <CounterDetailsHourlyStats
+{            <CounterDetailsHourlyStats
               counter={counter}
-              hourlyStats={preloadedData.hourlyStats}
-            />
+              allValues={allData.allValues}
+            />}
           </div>
 
           <div className="col-span-12">
-            <CounterWeeklyStats
+{/*             <CounterWeeklyStats
               counter={counter}
-              weeklyStats={preloadedData.weeklyStats}
-            />
+              allValues={allData.allValues}
+            /> */}
           </div>
 
           <div className="col-span-12">
@@ -171,11 +143,11 @@ export default async function CounterDetailsPage({
                 Statistiques journalières
               </h2>
               <div className="h-[calc(60vh-8rem)]">
-                  <CounterDailyBarChart
-                    counter={counter}
-                    dailyBarStats={preloadedData.dailyBarStats || []}
-                    currentYear={currentYear}
-                  />
+{/*                 <CounterDailyBarChart
+                  counter={counter}
+                  allValues={allData.allValues}
+                  currentYear={currentYear}
+                /> */}
               </div>
             </section>
           </div>
@@ -197,7 +169,7 @@ export default async function CounterDetailsPage({
                     État du compteur
                   </h4>
                   <p className="text-blue-700 text-xs">
-                    {counterIsActive
+                    {allData.counterIsActive
                       ? "Le compteur est actif et transmet des données régulièrement."
                       : "Le compteur est inactif et n'a pas transmis de données depuis plus de deux semaines."}
                   </p>

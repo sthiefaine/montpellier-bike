@@ -106,6 +106,9 @@ export async function getDailyStats(): Promise<DailyStats> {
       .reduce((max, temp) => Math.max(max, temp), -100);
   };
 
+
+  console.log("eeeee", todayWeather);
+
   return {
     passages: {
       dayBeforeYesterday: Number(dayBeforeYesterdayStats[0].total),

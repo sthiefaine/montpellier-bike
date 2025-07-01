@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import type { BikeCounter } from "@prisma/client";
-import { HourlyStatsDetailsTypes } from "@/types/counters/details";
+import { CounterValue } from "@/actions/counters/allData";
 import {
   LineChart,
   Line,
@@ -15,14 +15,24 @@ import {
 } from "recharts";
 import CounterSkeleton from "@/components/Stats/Counters/CounterSkeleton";
 import { WEEK_DAYS_CONFIG } from "@/helpers";
+import {
+  getValuesForWeek,
+  getAvailableYears,
+  getAvailableWeeks,
+  getWeekStartDate,
+  calculateHourlyStatsByDayOfWeek,
+  getValuesForYear,
+  getWeekNumber,
+} from "@/actions/counters/allData";
+import {
+  getEndOfWeekParis,
+  getStartOfWeekParis,
+} from "@/actions/counters/dateHelpers";
 
 interface CounterDetailsHourlyStatsProps {
   counter: BikeCounter;
-  hourlyStats: HourlyStatsDetailsTypes[] | null;
+  allValues: CounterValue[];
 }
-
-
-
 
 interface CustomTooltipProps {
   active?: boolean;
@@ -41,7 +51,14 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
         <p className="text-sm font-medium text-gray-700">{label}h</p>
         {payload.map((entry, index) => (
           <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {WEEK_DAYS_CONFIG[entry.dataKey as keyof typeof WEEK_DAYS_CONFIG].name}: {entry.value !== null ? entry.value.toLocaleString() : "Aucune donnée"}
+            {
+              WEEK_DAYS_CONFIG[entry.dataKey as keyof typeof WEEK_DAYS_CONFIG]
+                .name
+            }
+            :{" "}
+            {entry.value !== null
+              ? entry.value.toLocaleString()
+              : "Aucune donnée"}
           </p>
         ))}
       </div>
@@ -52,70 +69,118 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
 
 export default function CounterDetailsHourlyStats({
   counter,
-  hourlyStats,
+  allValues,
 }: CounterDetailsHourlyStatsProps) {
-  const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const hourlyStatsForYear = hourlyStats?.filter((stats) => stats.year === selectedYear) || [];
-  const maxWeek = hourlyStatsForYear.length > 0 ? hourlyStatsForYear[hourlyStatsForYear.length - 1].week.number : 1;
+  const [selectedYear, setSelectedYear] = useState<number>(
+    new Date().getFullYear()
+  );
+
+  // Pré-calculer toutes les années et semaines disponibles en une seule fois
+  const { availableYears, allWeeksByYear } = useMemo(() => {
+    const years = getAvailableYears(allValues);
+    const weeksByYear = new Map<number, number[]>();
+
+    // Calculer toutes les semaines pour toutes les années en une fois
+    for (let year = years.start; year <= years.end; year++) {
+      const yearValues = getValuesForYear(allValues, year);
+      const weekSet = new Set<number>();
+
+      yearValues.forEach((v) => {
+        const weekStart = getStartOfWeekParis(v.date);
+        const weekNumber = getWeekNumber(weekStart);
+        weekSet.add(weekNumber);
+      });
+
+      weeksByYear.set(
+        year,
+        Array.from(weekSet).sort((a, b) => a - b)
+      );
+    }
+
+    return { availableYears: years, allWeeksByYear: weeksByYear };
+  }, [allValues]);
+
+  // Récupérer les semaines pour l'année sélectionnée
+  const availableWeeks = allWeeksByYear.get(selectedYear) || [];
+  const maxWeek =
+    availableWeeks.length > 0 ? availableWeeks[availableWeeks.length - 1] : 1;
   const [selectedWeek, setSelectedWeek] = useState<number>(maxWeek);
 
   useEffect(() => {
-    if (hourlyStats) {
-      if (hourlyStatsForYear?.find((stats) => stats.week.number === selectedWeek)) {
-        setSelectedWeek(selectedWeek);
-      } else {
-        setSelectedWeek(maxWeek);
-      }
+    if (availableWeeks.includes(selectedWeek)) {
+      setSelectedWeek(selectedWeek);
+    } else {
+      setSelectedWeek(maxWeek);
     }
-  }, [selectedYear]);
+  }, [selectedYear, availableWeeks, maxWeek, selectedWeek]);
 
-  if (!hourlyStats || hourlyStats.length === 0) {
-    return <CounterSkeleton />;
-  }
+  // Mémoriser les calculs pour la semaine sélectionnée
+  const weekData = useMemo(() => {
+    if (!allValues || allValues.length === 0) {
+      return {
+        weekStartDate: new Date(),
+        weekEndDate: new Date(),
+        hourlyStatsByDay: {},
+      };
+    }
+    
+    const weekStartDate = getWeekStartDate(selectedYear, selectedWeek);
+    const weekValues = getValuesForWeek(allValues, weekStartDate);
+    const hourlyStatsByDay = calculateHourlyStatsByDayOfWeek(weekValues);
+    const weekEndDate = getEndOfWeekParis(weekStartDate);
 
-  const currentStats = hourlyStats.find(
-    (stats) => stats.year === selectedYear && stats.week.number === selectedWeek
-  );
+    return {
+      weekStartDate,
+      weekEndDate,
+      hourlyStatsByDay,
+    };
+  }, [allValues, selectedYear, selectedWeek]);
 
-  const formatValue = (value: number) => {
+  const formatValue = useCallback((value: number) => {
     return new Intl.NumberFormat("fr-FR").format(value);
-  };
+  }, []);
 
-  const formatDate = (date: Date) => {
+  const formatDate = useCallback((date: Date) => {
     return new Intl.DateTimeFormat("fr-FR", {
       day: "numeric",
       month: "short",
     }).format(date);
-  };
+  }, []);
 
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = useMemo(() => Array.from({ length: 24 }, (_, i) => i), []);
 
-  const formatHour = (hour: number) => {
+  const formatHour = useCallback((hour: number) => {
     return `${hour.toString().padStart(2, "0")}h`;
-  };
+  }, []);
 
-  const chartData = hours.map((hour) => {
-    const data: Record<string, number> = { hour };
-    Object.entries(currentStats?.week.stats || {}).forEach(([day, stats]) => {
-      const stat = stats.find((s) => s.hour === hour);
-      data[day] = stat ? stat.value : 0;
+  const chartData = useMemo(() => {
+    return hours.map((hour) => {
+      const data: Record<string, number> = { hour };
+      Object.entries(weekData.hourlyStatsByDay).forEach(([day, stats]) => {
+        const stat = stats.find((s) => s.hour === hour);
+        data[day] = stat ? stat.value : 0;
+      });
+      return data;
     });
-    return data;
-  });
+  }, [hours, weekData.hourlyStatsByDay]);
 
-  const availableYears = hourlyStats.reduce(
-    (acc, stats) => {
-      if (stats.year < acc.start) acc.start = stats.year;
-      if (stats.year > acc.end) acc.end = stats.year;
-      return acc;
+  const handleYearChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setSelectedYear(Number(e.target.value));
     },
-    { start: Infinity, end: -Infinity }
+    []
   );
 
-  const availableWeeks = hourlyStats
-    .filter((stats) => stats.year === selectedYear)
-    .map((stats) => stats.week.number)
-    .sort((a, b) => a - b);
+  const handleWeekChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setSelectedWeek(Number(e.target.value));
+    },
+    []
+  );
+
+  if (!allValues || allValues.length === 0) {
+    return <CounterSkeleton />;
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
@@ -125,13 +190,16 @@ export default function CounterDetailsHourlyStats({
         </h3>
         <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
           <div className="flex flex-col gap-1">
-            <label htmlFor="year-select" className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor="year-select"
+              className="text-sm font-medium text-gray-700"
+            >
               Année
             </label>
             <select
               id="year-select"
               value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
+              onChange={handleYearChange}
               className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm py-2 px-3 bg-white text-black"
             >
               {Array.from(
@@ -145,13 +213,16 @@ export default function CounterDetailsHourlyStats({
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label htmlFor="week-select" className="text-sm font-medium text-gray-700">
+            <label
+              htmlFor="week-select"
+              className="text-sm font-medium text-gray-700"
+            >
               Semaine
             </label>
             <select
               id="week-select"
               value={selectedWeek}
-              onChange={(e) => setSelectedWeek(Number(e.target.value))}
+              onChange={handleWeekChange}
               className="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm py-2 px-3 bg-white text-black"
             >
               {availableWeeks.map((week) => (
@@ -164,9 +235,8 @@ export default function CounterDetailsHourlyStats({
         </div>
       </div>
       <p className="text-sm text-gray-500 mb-4">
-        Semaine {currentStats?.week.number} (
-        {formatDate(currentStats?.week.startDate || new Date())} -{" "}
-        {formatDate(currentStats?.week.endDate || new Date())})
+        Semaine {selectedWeek} ({formatDate(weekData.weekStartDate)} -{" "}
+        {formatDate(weekData.weekEndDate)})
       </p>
       <div className="bg-white p-2 rounded-lg shadow-sm">
         <div className="h-[400px]">
