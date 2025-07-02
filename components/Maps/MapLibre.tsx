@@ -28,6 +28,7 @@ interface MapLibreProps {
     lat: number;
     lng: number;
   };
+  disableAutoZoom?: boolean;
 }
 
 const bounds: maplibregl.LngLatBoundsLike = [
@@ -157,6 +158,7 @@ export default function MapLibre({
   defaultSelectedCounter,
   defaultZoom = 8,
   defaultCenter,
+  disableAutoZoom = false,
 }: MapLibreProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -275,11 +277,13 @@ export default function MapLibre({
       marker.getElement().addEventListener("click", () => {
         setSelectedCounter(counter);
         onCounterSelect?.(counter);
-        map.current?.flyTo({
-          center: [counter.longitude, counter.latitude],
-          zoom: 13,
-          duration: 1000,
-        });
+        if (!disableAutoZoom) {
+          map.current?.flyTo({
+            center: [counter.longitude, counter.latitude],
+            zoom: 13,
+            duration: 1000,
+          });
+        }
       });
 
       markersRef.current.push(marker);

@@ -34,3 +34,19 @@ export async function getCounterIsActive(counterId: string): Promise<boolean> {
 
   return activeCounter !== null;
 }
+
+export async function getCounterIsActiveSinceDays(counterId: string, days: number): Promise<boolean> {
+  const sinceDate = new Date();
+  sinceDate.setUTCDate(sinceDate.getUTCDate() - days);
+
+  const activeCounter = await prisma.counterTimeseries.findFirst({
+    where: {
+      date: {
+        gte: sinceDate,
+      },
+      counterId,
+    },
+  });
+
+  return activeCounter !== null;
+}
