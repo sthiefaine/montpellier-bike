@@ -34,16 +34,28 @@ export default function MonitoringPageClient({
   const [selectedCounterDailyStats, setSelectedCounterDailyStats] =
     useState<any>(null);
   const [inactivePeriod, setInactivePeriod] = useState<number>(2);
+  const [excludeOldCounters, setExcludeOldCounters] = useState<boolean>(true);
+  const [excludeMonths, setExcludeMonths] = useState<number>(2);
   const [counters, setCounters] = useState(initialCounters);
 
   useEffect(() => {
-    const updatedCounters = initialCounters.map((counter) => ({
+    let updatedCounters = initialCounters.map((counter) => ({
       ...counter,
       isActive:
         counter.states[inactivePeriod as keyof typeof counter.states] || false,
     }));
+
+    // Filtrer les compteurs qui n'ont pas de données depuis X mois si l'option est activée
+    if (excludeOldCounters) {
+      updatedCounters = updatedCounters.filter((counter) => {
+        // Pour l'instant, on utilise 30 jours (1 mois) comme approximation
+        // car nous n'avons que les périodes 1, 2, 7, 14, 30 jours disponibles
+        return counter.states[30] !== false;
+      });
+    }
+
     setCounters(updatedCounters);
-  }, [inactivePeriod, initialCounters]);
+  }, [inactivePeriod, excludeOldCounters, excludeMonths, initialCounters]);
 
   useEffect(() => {
     const fetchCounterData = async () => {
@@ -126,6 +138,38 @@ export default function MonitoringPageClient({
                   <option value={14}>14 jours</option>
                   <option value={30}>1 mois</option>
                 </select>
+              </div>
+
+              {/* Options de filtrage */}
+              <div className="lg:w-80 bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <input
+                      id="exclude-old-counters"
+                      type="checkbox"
+                      checked={excludeOldCounters}
+                      onChange={(e) => setExcludeOldCounters(e.target.checked)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <span className="text-sm text-gray-600">
+                      Exclure compteurs inactifs depuis
+                    </span>
+                  </div>
+                  <select
+                    value={excludeMonths}
+                    onChange={(e) => setExcludeMonths(Number(e.target.value))}
+                    className={`rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm py-1 px-2 bg-white text-black transition-colors ${
+                      !excludeOldCounters ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                    disabled={!excludeOldCounters}
+                  >
+                    <option value={1}>1 mois</option>
+                    <option value={2}>2 mois</option>
+                    <option value={3}>3 mois</option>
+                    <option value={6}>6 mois</option>
+                    <option value={12}>1 an</option>
+                  </select>
+                </div>
               </div>
 
               {/* Statistiques de monitoring */}
@@ -264,9 +308,13 @@ export default function MonitoringPageClient({
                             {(() => {
                               const today = new Date();
                               const fromDate = new Date(today);
-                              fromDate.setDate(today.getDate() - inactivePeriod);
-                              const fromDateString = fromDate.toISOString().split('T')[0] + 'T00%3A00%3A00';
-                              
+                              fromDate.setDate(
+                                today.getDate() - inactivePeriod
+                              );
+                              const fromDateString =
+                                fromDate.toISOString().split("T")[0] +
+                                "T00%3A00%3A00";
+
                               return (
                                 <a
                                   href={`https://portail-api-data.montpellier3m.fr/ecocounter_timeseries/urn%3Angsi-ld%3AEcoCounter%3A${selectedCounter.serialNumber}/attrs/intensity?fromDate=${fromDateString}`}
