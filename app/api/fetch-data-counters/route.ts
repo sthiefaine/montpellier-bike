@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getBeforeYesterdayBoundsParis } from "@/actions/counters/dateHelpers";
+import { getCurrentSerialNumber } from "@/helpers";
 
 function toISO(date: Date) {
   return date.toISOString();
@@ -47,22 +48,32 @@ export async function GET(req: NextRequest) {
     const counterParam = searchParams.get("counter");
     const fromParam = searchParams.get("from");
 
-    const from = fromParam ? new Date(fromParam) : getBeforeYesterdayBoundsParis().start;
+    const from = fromParam
+      ? new Date(fromParam)
+      : getBeforeYesterdayBoundsParis().start;
 
     let counters;
     if (counterParam) {
-      const firstCounter = await prisma.bikeCounter.findFirst();
-      counters = firstCounter ? [firstCounter] : [];
+      // Pour un compteur spécifique, on cherche le plus récent (actif)
+      const counter = await prisma.bikeCounter.findFirst({
+        where: { isActive: true },
+        orderBy: { updatedAt: "desc" },
+      });
+      counters = counter ? [counter] : [];
     } else {
-      counters = await prisma.bikeCounter.findMany();
+      // Pour tous les compteurs, on ne prend que les actifs
+      counters = await prisma.bikeCounter.findMany({
+        where: { isActive: true },
+      });
     }
 
     let totalInserted = 0;
     for (const counter of counters) {
-      const serialNumber =
-        counter.serialNumber1 && /^[a-zA-Z]/.test(counter.serialNumber1)
-          ? counter.serialNumber1
-          : counter.serialNumber;
+      const serialNumber = getCurrentSerialNumber(
+        counter.serialNumber,
+        counter.serialNumber1
+      );
+
       try {
         totalInserted += await fetchAndStoreForCounter(
           counter.id,

@@ -48,8 +48,6 @@ export default function MonitoringPageClient({
     // Filtrer les compteurs qui n'ont pas de données depuis X mois si l'option est activée
     if (excludeOldCounters) {
       updatedCounters = updatedCounters.filter((counter) => {
-        // Pour l'instant, on utilise 30 jours (1 mois) comme approximation
-        // car nous n'avons que les périodes 1, 2, 7, 14, 30 jours disponibles
         return counter.states[30] !== false;
       });
     }

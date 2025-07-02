@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,80 +8,93 @@ datasource db {
 }
 
 model BikeCounter {
-  id          String   @id @default(cuid())
-  name        String
-  serialNumber String  @unique @map("numero_serie")
-  serialNumber1 String? @map("numero_serie_1")
-  latitude    Float
-  longitude   Float
-  osmLineId   Int      @map("osm_line_id")
-  coordinates Json     @map("coordinates")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
-  timeseries  CounterTimeseries[]
+  id              String              @id @default(cuid())
+  name            String
+  serialNumber    String              @unique @map("numero_serie")
+  serialNumber1   String?             @map("numero_serie_1")
+  latitude        Float
+  longitude       Float
+  osmLineId       Int                 @map("osm_line_id")
+  coordinates     Json                @map("coordinates")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  isActive        Boolean?            @default(true) @map("is_active")
+  parentId        String?             @map("parent_id")
+  timeseries      CounterTimeseries[]
+  counter_history CounterHistory[]
 
   @@map("bike_counters")
 }
 
+model CounterHistory {
+  id              String      @id @default(dbgenerated("gen_random_uuid()"))
+  counter_id      String
+  oldSerialNumber String?     @map("old_serial_number")
+  newSerialNumber String      @map("new_serial_number")
+  changeDate      DateTime    @map("change_date") @db.Timestamp(6)
+  changeReason    String?     @map("change_reason")
+  createdAt       DateTime?   @default(now()) @map("created_at") @db.Timestamp(6)
+  bike_counters   BikeCounter @relation(fields: [counter_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_counter")
+
+  @@map("counter_history")
+}
+
 model CounterTimeseries {
-  id           String   @id @default(uuid())
+  id           String      @id @default(uuid())
   counterId    String
   serialNumber String
   date         DateTime
   value        Int
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
   bikeCounter  BikeCounter @relation(fields: [counterId], references: [id])
 
   @@unique([counterId, date])
 }
 
 model WeatherTimeseries {
-  id           String   @id @default(uuid())
-  zone         String
-  lat          Float
-  lng          Float
-  date         DateTime
-  type         String   // 'hourly' ou 'daily'
-  source       String   // ex: 'open-meteo'
-  timezone     String?
-  utcOffsetSeconds Int?
-  // Variables horaires
-  temperature2m        Float?
-  rain                Float?
-  weatherCode         Int?
-  windSpeed100m       Float?
-  windDirection100m   Float?
-  windDirection10m    Float?
-  windSpeed10m        Float?
-  windGusts10m        Float?
-  isDay               Int?
-  precipitation       Float?
-  apparentTemperature Float?
-  snowfall            Float?
-  dewPoint2m          Float?
-  relativeHumidity2m  Float?
-  cloudCover          Float?
-  // Variables quotidiennes
-  daylightDuration    Int?
-  sunshineDuration    Int?
-  sunrise             DateTime?
-  sunset              DateTime?
-  temperature2mMax    Float?
-  temperature2mMin    Float?
-  precipitationSum    Float?
-  rainSum             Float?
-  snowfallSum         Float?
-  precipitationHours  Float?
-  windSpeed10mMax     Float?
-  windGusts10mMax     Float?
-  windDirection10mDominant Float?
-  precipitationProbabilityMax Float?
-  precipitationProbabilityMin Float?
+  id                           String    @id @default(uuid())
+  zone                         String
+  lat                          Float
+  lng                          Float
+  date                         DateTime
+  type                         String
+  source                       String
+  timezone                     String?
+  utcOffsetSeconds             Int?
+  temperature2m                Float?
+  rain                         Float?
+  weatherCode                  Int?
+  windSpeed100m                Float?
+  windDirection100m            Float?
+  windDirection10m             Float?
+  windSpeed10m                 Float?
+  windGusts10m                 Float?
+  isDay                        Int?
+  precipitation                Float?
+  apparentTemperature          Float?
+  snowfall                     Float?
+  dewPoint2m                   Float?
+  relativeHumidity2m           Float?
+  cloudCover                   Float?
+  daylightDuration             Int?
+  sunshineDuration             Int?
+  sunrise                      DateTime?
+  sunset                       DateTime?
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
+  precipitationHours           Float?
+  precipitationProbabilityMax  Float?
   precipitationProbabilityMean Float?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  precipitationProbabilityMin  Float?
+  precipitationSum             Float?
+  rainSum                      Float?
+  snowfallSum                  Float?
+  temperature2mMax             Float?
+  temperature2mMin             Float?
+  windDirection10mDominant     Float?
+  windGusts10mMax              Float?
+  windSpeed10mMax              Float?
 
   @@unique([zone, date, type])
 }

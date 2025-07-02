@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getCurrentSerialNumber } from "@/helpers";
 
 const API_KEY = process.env.API_KEY_COUNTERS;
 
@@ -99,14 +100,17 @@ export async function GET(
       );
     }
 
-    const counters = await prisma.bikeCounter.findMany();
+    // Ne récupérer que les compteurs actifs
+    const counters = await prisma.bikeCounter.findMany({
+      where: { isActive: true }
+    });
+    
     let totalInserted = 0;
 
     for (const counter of counters) {
-      const serialNumber =
-        counter.serialNumber1 && /^[a-zA-Z]/.test(counter.serialNumber1)
-          ? counter.serialNumber1
-          : counter.serialNumber;
+      // Utiliser la fonction helper pour déterminer le bon numéro de série
+      const serialNumber = getCurrentSerialNumber(counter.serialNumber, counter.serialNumber1);
+      
       try {
         const inserted = await fetchAndStoreForCounter(
           counter.id,
