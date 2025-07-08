@@ -6,6 +6,7 @@ import { getGlobalWeeklyComparisonStats } from "@/actions/counters/weekly";
 import CounterGlobalDailyChart from "@/components/Stats/Counters/CounterGlobalDailyChart";
 import CounterGlobalWeeklyLineChart from "@/components/Stats/Counters/CounterGlobalWeeklyLineChart";
 import CounterYearlyStats from "@/components/Stats/Counters/CounterYearlyStats";
+import Link from "next/link";
 
 const getGlobalDailyStatsData = async () => {
   const data = await getGlobalDailyStatsForYear();
@@ -34,7 +35,7 @@ export default async function GlobalSection() {
             <div className="mt-4 md:mt-0 md:ml-6">
               <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4 flex flex-col items-center">
                 <span className="text-sm text-gray-700 mb-2">Voir la page générale</span>
-                <a
+                <Link
                   href="/general"
                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold rounded-lg shadow hover:from-blue-600 hover:to-blue-800 transition-all duration-200"
                 >
@@ -42,7 +43,7 @@ export default async function GlobalSection() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
-                </a>
+                </Link>
               </div>
             </div>
           </div>

@@ -27,7 +27,7 @@ export default function CounterYearlyStats({
   yearlyStats,
 }: CounterYearlyStatsProps) {
   const filteredYearlyStats = yearlyStats?.filter(
-    (stat) => stat.year <= new Date().getFullYear()
+    (stat) => stat.year <= new Date().getFullYear() && stat.year !== 2022
   );
 
   if (!yearlyStats) return <CounterSkeleton />;

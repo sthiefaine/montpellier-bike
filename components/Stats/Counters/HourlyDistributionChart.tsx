@@ -11,6 +11,7 @@ import {
   Legend,
   Cell,
 } from "recharts";
+import ChartHeader from "./ChartHeader";
 
 interface HourlyDistributionData {
   name: string;
@@ -32,6 +33,9 @@ interface HourlyDistributionChartProps {
   stats: HourlyDistributionStats | null;
   isLoading?: boolean;
   type?: 'total' | 'average';
+  title?: string;
+  description?: string;
+  showHeader?: boolean;
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -63,8 +67,13 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function HourlyDistributionChart({
   stats,
   isLoading = false,
-  type = 'total'
+  type = 'total',
+  title,
+  description,
+  showHeader = true
 }: HourlyDistributionChartProps) {
+
+  console.log('stats', stats);
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full">
@@ -110,24 +119,21 @@ export default function HourlyDistributionChart({
   const periodStart = new Date(stats.period.start).toLocaleDateString('fr-FR');
   const periodEnd = new Date(stats.period.end).toLocaleDateString('fr-FR');
 
-  // Couleurs pour les barres (dégradé de bleu)
-  const getBarColor = (hour: number) => {
-    if (hour >= 6 && hour <= 9) return '#3b82f6'; // Heures de pointe matin
-    if (hour >= 17 && hour <= 19) return '#1d4ed8'; // Heures de pointe soir
-    if (hour >= 22 || hour <= 5) return '#1e40af'; // Heures nocturnes
-    return '#60a5fa'; // Heures normales
-  };
+  // Couleur unique pour toutes les barres
+  const barColor = '#3b82f6'; // Bleu simple
 
-  return (
+  // Titre et description par défaut si non fournis
+  const defaultTitle = title || "Répartition par heure de la journée";
+  const defaultDescription = description || `${type === 'total' ? 'Total des passages' : 'Moyenne quotidienne'} du ${periodStart} au ${periodEnd}`;
+
+    return (
     <div className="w-full h-full">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Répartition par heure de la journée
-        </h3>
-        <p className="text-sm text-gray-600">
-          {type === 'total' ? 'Total des passages' : 'Moyenne quotidienne'} du {periodStart} au {periodEnd}
-        </p>
-      </div>
+      {showHeader && (
+        <ChartHeader 
+          title={defaultTitle}
+          description={defaultDescription}
+        />
+      )}
       
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 20, right: 40, left: 30, bottom: 20 }}>
@@ -152,36 +158,10 @@ export default function HourlyDistributionChart({
             dataKey="value" 
             name={type === 'total' ? 'Total passages' : 'Moyenne passages/jour'}
             radius={[4, 4, 0, 0]}
-          >
-            {data.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={getBarColor(entry.hour)} />
-            ))}
-          </Bar>
+            fill={barColor}
+          />
         </BarChart>
       </ResponsiveContainer>
-
-      {/* Légende des couleurs */}
-      <div className="mt-4">
-        <h4 className="font-medium text-gray-900 mb-2">Légende des couleurs</h4>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span className="text-sm text-gray-700">Heures de pointe matin (6h-9h)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-700 rounded"></div>
-            <span className="text-sm text-gray-700">Heures de pointe soir (17h-19h)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-800 rounded"></div>
-            <span className="text-sm text-gray-700">Heures nocturnes (22h-5h)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 bg-blue-400 rounded"></div>
-            <span className="text-sm text-gray-700">Heures normales</span>
-          </div>
-        </div>
-      </div>
     </div>
   );
 } 

@@ -143,6 +143,86 @@ export async function getGlobalDailyStatsForYear(year?: string): Promise<Counter
   };
 }
 
+export async function getGlobalDailyStatsForPeriod(startDate: string, endDate: string): Promise<CounterGlobalDailyStats> {
+  const dayNames = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ];
+  const dayOrder = [
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+    "sunday",
+  ];
+
+  const result = await prisma.$queryRaw<DailyDataPoint[]>(
+    Prisma.sql`
+      WITH dates AS (
+        SELECT generate_series(
+          ${startDate}::date,
+          ${endDate}::date,
+          interval '1 day'
+        )::date as date
+      )
+      SELECT 
+        dates.date::text as day,
+        COALESCE(SUM(ct.value), 0)::integer as value
+      FROM dates
+      LEFT JOIN "CounterTimeseries" ct ON 
+        date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = dates.date
+      GROUP BY dates.date
+      ORDER BY dates.date ASC
+    `
+  );
+
+  const filteredResult = filterConsecutiveZeros(result, 2);
+
+  const dailyTotals = filteredResult.reduce((acc, curr) => {
+    const date = new Date(curr.day);
+    const dayOfWeek = date.getDay();
+    const dayName = dayNames[dayOfWeek];
+
+    if (!acc[dayName]) {
+      acc[dayName] = { total: 0, count: 0 };
+    }
+
+    acc[dayName].total += curr.value;
+    acc[dayName].count += 1;
+
+    return acc;
+  }, {} as Record<string, { total: number; count: number }>);
+
+  const formattedTotals = Object.entries(dailyTotals).map(([day, data]) => ({
+    day,
+    value: data.total,
+    count: data.count,
+  }));
+
+  formattedTotals.sort(
+    (a, b) => dayOrder.indexOf(a.day) - dayOrder.indexOf(b.day)
+  );
+
+  // Calculer la moyenne des totaux quotidiens
+  const totalValue = formattedTotals.reduce((sum, curr) => sum + curr.value, 0);
+  const globalAverage = Math.round(totalValue / formattedTotals.length);
+
+  return {
+    dailyTotals: formattedTotals,
+    globalAverage,
+    totalDays: filteredResult.length,
+    originalDays: result.length,
+    filteredDays: result.length - filteredResult.length,
+  };
+}
+
 // Fonction pour filtrer les périodes de plus de N jours consécutifs à zéro
 function filterConsecutiveZeros(
   data: DailyDataPoint[],
@@ -587,9 +667,16 @@ export async function getAvailableYears() {
       ORDER BY year DESC
     `;
     
-    const years = await prisma.$queryRaw<{ year: number; record_count: number }[]>(Prisma.raw(query));
+    const years = await prisma.$queryRaw<{ year: any; record_count: any }[]>(Prisma.raw(query));
     console.log('Années disponibles avec données:', years);
-    return years;
+    
+    // Convertir les Decimal en nombres
+    const convertedYears = years.map(year => ({
+      year: Number(year.year),
+      record_count: Number(year.record_count)
+    }));
+    
+    return convertedYears;
   } catch (error) {
     console.error('Erreur lors de la récupération des années disponibles:', error);
     return [];
@@ -628,7 +715,7 @@ export async function getHourlyDistributionStats(
     `;
     
     console.log('Exécution de la requête horaire:', query);
-    const hourlyData = await prisma.$queryRaw<{ hour: number; total: number; day_count: number; average: number }[]>(Prisma.raw(query));
+    const hourlyData = await prisma.$queryRaw<{ hour: any; total: any; day_count: any; average: any }[]>(Prisma.raw(query));
     console.log('Résultats de la requête horaire:', hourlyData);
     
     if (!hourlyData || hourlyData.length === 0) {
@@ -641,10 +728,10 @@ export async function getHourlyDistributionStats(
     
     const distribution = hourlyData.map(item => ({
       name: `${item.hour}h`,
-      hour: item.hour,
-      total: item.total,
-      average: item.average,
-      count: item.day_count
+      hour: Number(item.hour),
+      total: Number(item.total),
+      average: Number(item.average),
+      count: Number(item.day_count)
     }));
     
     console.log('Distribution finale:', distribution);
@@ -782,8 +869,8 @@ export async function getHourlyStatsByDayOfWeek(startDate: string, endDate: stri
       standard_deviation: number;
     }[]>(Prisma.sql`
       SELECT 
-        EXTRACT(DOW FROM date) as day_of_week,
-        CASE EXTRACT(DOW FROM date)
+        EXTRACT(DOW FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day_of_week,
+        CASE EXTRACT(DOW FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
             WHEN 0 THEN 'Dimanche'
             WHEN 1 THEN 'Lundi'
             WHEN 2 THEN 'Mardi'
@@ -792,7 +879,7 @@ export async function getHourlyStatsByDayOfWeek(startDate: string, endDate: stri
             WHEN 5 THEN 'Vendredi'
             WHEN 6 THEN 'Samedi'
         END as day_name,
-        EXTRACT(HOUR FROM date) as hour_of_day,
+        EXTRACT(HOUR FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as hour_of_day,
         COUNT(*) as number_of_observations,
         SUM(value) as total_passages,
         AVG(value) as average_passages,
@@ -803,8 +890,8 @@ export async function getHourlyStatsByDayOfWeek(startDate: string, endDate: stri
       WHERE date >= ${startDate}::date
         AND date <= ${endDate}::date
       GROUP BY 
-        EXTRACT(DOW FROM date), 
-        EXTRACT(HOUR FROM date)
+        EXTRACT(DOW FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'), 
+        EXTRACT(HOUR FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
       ORDER BY 
         day_of_week, 
         hour_of_day
@@ -824,5 +911,82 @@ export async function getHourlyStatsByDayOfWeek(startDate: string, endDate: stri
   } catch (error) {
     console.error('Erreur dans getHourlyStatsByDayOfWeek:', error);
     return [];
+  }
+}
+
+export async function getHourlyDistributionStatsWithFilter(
+  startDate: string,
+  endDate: string,
+  filter: 'global' | 'week' | 'weekend'
+) {
+  try {
+    console.log('getHourlyDistributionStatsWithFilter appelé avec:', { startDate, endDate, filter });
+    
+    let dayFilter = '';
+    if (filter === 'week') {
+      dayFilter = 'AND EXTRACT(DOW FROM ct.date AT TIME ZONE \'UTC\' AT TIME ZONE \'Europe/Paris\') BETWEEN 1 AND 5';
+    } else if (filter === 'weekend') {
+      dayFilter = 'AND EXTRACT(DOW FROM ct.date AT TIME ZONE \'UTC\' AT TIME ZONE \'Europe/Paris\') IN (0, 6)';
+    }
+    
+    const query = `
+      WITH daily_hourly_totals AS (
+        SELECT 
+          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as hour,
+          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day,
+          SUM(ct.value)::integer as daily_hour_total
+        FROM "CounterTimeseries" ct
+        WHERE ct.date >= '${startDate}'::date
+          AND ct.date <= '${endDate}'::date
+          ${dayFilter}
+        GROUP BY 
+          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'),
+          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
+      )
+      SELECT 
+        hour,
+        SUM(daily_hour_total)::integer as total,
+        COUNT(*) as day_count,
+        ROUND(AVG(daily_hour_total))::integer as average
+      FROM daily_hourly_totals
+      GROUP BY hour
+      ORDER BY hour
+    `;
+    
+    console.log('Exécution de la requête horaire avec filtre:', query);
+    const hourlyData = await prisma.$queryRaw<{ hour: any; total: any; day_count: any; average: any }[]>(Prisma.raw(query));
+    console.log('Résultats de la requête horaire avec filtre:', hourlyData);
+    
+    if (!hourlyData || hourlyData.length === 0) {
+      console.log('Aucune donnée horaire trouvée avec le filtre');
+      return {
+        distribution: [],
+        period: { start: startDate, end: endDate }
+      };
+    }
+    
+    const distribution = hourlyData.map(item => ({
+      name: `${item.hour}h`,
+      hour: Number(item.hour),
+      total: Number(item.total),
+      average: Number(item.average),
+      count: Number(item.day_count)
+    }));
+    
+    console.log('Distribution finale avec filtre:', distribution);
+    
+    return {
+      distribution,
+      period: {
+        start: startDate,
+        end: endDate
+      }
+    };
+  } catch (error) {
+    console.error('Erreur dans getHourlyDistributionStatsWithFilter:', error);
+    return {
+      distribution: [],
+      period: { start: startDate, end: endDate }
+    };
   }
 }

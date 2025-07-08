@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import ChartHeader from "./ChartHeader";
 
 interface EvolutionData {
   day: string;
@@ -27,13 +28,16 @@ interface EvolutionStats {
 interface CounterEvolutionChartProps {
   evolutionStats: EvolutionStats | null;
   isLoading?: boolean;
-  aggregation?: 'days' | 'weeks';
+  aggregation?: "days" | "weeks";
+  title?: string;
+  description?: string;
+  showHeader?: boolean;
 }
 
-const formatDate = (dateString: string, aggregation: 'days' | 'weeks') => {
+const formatDate = (dateString: string, aggregation: "days" | "weeks") => {
   const date = new Date(dateString);
-  
-  if (aggregation === 'weeks') {
+
+  if (aggregation === "weeks") {
     // Calculer le numéro de semaine ISO 8601
     const getWeekNumber = (date: Date) => {
       const target = new Date(date.valueOf());
@@ -42,18 +46,18 @@ const formatDate = (dateString: string, aggregation: 'days' | 'weeks') => {
       const firstThursday = target.valueOf();
       target.setMonth(0, 1);
       if (target.getDay() !== 4) {
-        target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+        target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
       }
       return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
     };
-    
+
     const weekNumber = getWeekNumber(date);
     return `S${weekNumber}`;
   }
-  
-  return date.toLocaleDateString('fr-FR', { 
-    day: '2-digit', 
-    month: '2-digit' 
+
+  return date.toLocaleDateString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
   });
 };
 
@@ -78,7 +82,10 @@ const CustomTooltip = ({ active, payload, label, aggregation }: any) => {
 export default function CounterEvolutionChart({
   evolutionStats,
   isLoading = false,
-  aggregation = 'days',
+  aggregation = "days",
+  title,
+  description,
+  showHeader = true,
 }: CounterEvolutionChartProps) {
   if (isLoading) {
     return (
@@ -99,13 +106,13 @@ export default function CounterEvolutionChart({
   // Fonction pour regrouper les données par semaine
   const groupByWeek = (data: EvolutionData[]) => {
     const weeklyData: { [key: string]: EvolutionData[] } = {};
-    
-    data.forEach(item => {
+
+    data.forEach((item) => {
       const date = new Date(item.day);
       const weekStart = new Date(date);
       weekStart.setDate(date.getDate() - date.getDay() + 1); // Lundi
-      const weekKey = weekStart.toISOString().split('T')[0];
-      
+      const weekKey = weekStart.toISOString().split("T")[0];
+
       if (!weeklyData[weekKey]) {
         weeklyData[weekKey] = [];
       }
@@ -115,7 +122,10 @@ export default function CounterEvolutionChart({
     return Object.entries(weeklyData).map(([weekKey, weekItems]) => ({
       day: weekKey,
       total: weekItems.reduce((sum, item) => sum + item.total, 0),
-      average: Math.round(weekItems.reduce((sum, item) => sum + item.average, 0) / weekItems.length)
+      average: Math.round(
+        weekItems.reduce((sum, item) => sum + item.average, 0) /
+          weekItems.length
+      ),
     }));
   };
 
@@ -123,7 +133,7 @@ export default function CounterEvolutionChart({
   let processedCurrentYear = evolutionStats.currentYear;
   let processedPreviousYear = evolutionStats.previousYear;
 
-  if (aggregation === 'weeks') {
+  if (aggregation === "weeks") {
     processedCurrentYear = groupByWeek(evolutionStats.currentYear);
     processedPreviousYear = groupByWeek(evolutionStats.previousYear);
   }
@@ -143,15 +153,15 @@ export default function CounterEvolutionChart({
 
   // Calculer le maximum réel des données
   const maxValue = Math.max(
-    ...combinedData.map(d => Math.max(d.currentTotal, d.previousTotal))
+    ...combinedData.map((d) => Math.max(d.currentTotal, d.previousTotal))
   );
   const yAxisMax = Math.ceil(maxValue * 1.1); // 10% de marge
 
   // Fonction wrapper pour le tickFormatter
   const tickFormatter = (value: any) => {
-    if (aggregation === 'weeks') {
+    if (aggregation === "weeks") {
       const date = new Date(value);
-      
+
       // Calculer le numéro de semaine ISO 8601
       const getWeekNumber = (date: Date) => {
         const target = new Date(date.valueOf());
@@ -160,41 +170,46 @@ export default function CounterEvolutionChart({
         const firstThursday = target.valueOf();
         target.setMonth(0, 1);
         if (target.getDay() !== 4) {
-          target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+          target.setMonth(0, 1 + ((4 - target.getDay() + 7) % 7));
         }
         return 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
       };
-      
+
       const weekNumber = getWeekNumber(date);
-      
+
       // Afficher seulement les semaines impaires
-      return weekNumber % 2 === 1 ? `S${weekNumber}` : '';
+      return weekNumber % 2 === 1 ? `S${weekNumber}` : "";
     }
     return formatDate(value, aggregation);
   };
 
+  // Titre et description par défaut si non fournis
+  const defaultTitle = title || "Évolution de la fréquentation";
+  const defaultDescription = description || `Comparaison entre ${currentYear} et ${previousYear} jusqu'au ${formatDate(evolutionStats.currentYearDate, aggregation)}`;
+
   return (
     <div className="w-full h-full">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Évolution de la fréquentation
-        </h3>
-        <p className="text-sm text-gray-600">
-          Comparaison entre {currentYear} et {previousYear} jusqu'au {formatDate(evolutionStats.currentYearDate, aggregation)}
-        </p>
-      </div>
-      
+      {showHeader && (
+        <ChartHeader 
+          title={defaultTitle}
+          description={defaultDescription}
+        />
+      )}
+
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={combinedData} margin={{ top: 20, right: 40, left: 30, bottom: 20 }}>
+        <LineChart
+          data={combinedData}
+          margin={{ top: 20, right: 40, left: 30, bottom: 20 }}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis 
-            dataKey="day" 
+          <XAxis
+            dataKey="day"
             tickFormatter={tickFormatter}
             fontSize={14}
             stroke="#6b7280"
             tickMargin={10}
           />
-          <YAxis 
+          <YAxis
             fontSize={14}
             stroke="#6b7280"
             tickFormatter={(value) => value.toLocaleString()}
@@ -203,7 +218,7 @@ export default function CounterEvolutionChart({
           />
           <Tooltip content={<CustomTooltip />} />
           <Legend />
-          
+
           {/* Lignes pour l'année actuelle */}
           <Line
             type="monotone"
@@ -211,10 +226,10 @@ export default function CounterEvolutionChart({
             stroke="#3b82f6"
             strokeWidth={3}
             dot={false}
-            activeDot={{ r: 5, stroke: '#3b82f6', strokeWidth: 2 }}
+            activeDot={{ r: 5, stroke: "#3b82f6", strokeWidth: 2 }}
             name={`Total ${currentYear}`}
           />
-          
+
           {/* Lignes pour l'année précédente */}
           <Line
             type="monotone"
@@ -222,11 +237,11 @@ export default function CounterEvolutionChart({
             stroke="#10b981"
             strokeWidth={2}
             dot={false}
-            activeDot={{ r: 5, stroke: '#10b981', strokeWidth: 2 }}
+            activeDot={{ r: 5, stroke: "#10b981", strokeWidth: 2 }}
             name={`Total ${previousYear}`}
           />
         </LineChart>
       </ResponsiveContainer>
     </div>
   );
-} 
+}

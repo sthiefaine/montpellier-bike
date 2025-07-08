@@ -1,13 +1,16 @@
 "use client";
 
 import {
-  PieChart,
-  Pie,
-  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
-  Legend,
+  Cell,
 } from "recharts";
+import ChartHeader from "./ChartHeader";
 
 interface DailyDistributionData {
   name: string;
@@ -30,20 +33,17 @@ interface DailyDistributionChartProps {
   stats: DailyDistributionStats | null;
   isLoading?: boolean;
   type?: 'total' | 'average';
+  title?: string;
+  description?: string;
+  showHeader?: boolean;
 }
 
-const CustomTooltip = ({ active, payload }: any) => {
+const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0];
     return (
       <div className="bg-white p-4 border border-gray-300 rounded-xl shadow-xl">
-        <div className="flex items-center gap-3 mb-3">
-          <div 
-            className="w-4 h-4 rounded-full" 
-            style={{ backgroundColor: data.color }}
-          ></div>
-          <h3 className="font-bold text-lg text-gray-900">{data.name}</h3>
-        </div>
+        <h3 className="font-bold text-lg text-gray-900 mb-3">{label}</h3>
         <div className="space-y-2">
           <div className="flex justify-between items-center">
             <span className="text-gray-600 font-medium">Total:</span>
@@ -64,26 +64,13 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
-const CustomLegend = ({ payload }: any) => {
-  return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mt-6">
-      {payload?.map((entry: any, index: number) => (
-        <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
-          <div 
-            className="w-4 h-4 rounded-full flex-shrink-0" 
-            style={{ backgroundColor: entry.color }}
-          ></div>
-          <span className="text-sm font-medium text-gray-900 truncate">{entry.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
 export default function DailyDistributionChart({
   stats,
   isLoading = false,
-  type = 'total'
+  type = 'total',
+  title,
+  description,
+  showHeader = true
 }: DailyDistributionChartProps) {
   if (isLoading) {
     return (
@@ -120,39 +107,54 @@ export default function DailyDistributionChart({
     value: type === 'total' ? item.total : item.average
   }));
 
+  // Calculer le maximum pour l'axe Y
+  const maxValue = Math.max(...data.map(d => d.value));
+  const yAxisMax = Math.ceil(maxValue * 1.2);
+
   const periodStart = new Date(stats.period.start).toLocaleDateString('fr-FR');
   const periodEnd = new Date(stats.period.end).toLocaleDateString('fr-FR');
 
+  // Titre et description par défaut si non fournis
+  const defaultTitle = title || "Répartition par jour de la semaine";
+  const defaultDescription = description || `${type === 'total' ? 'Total des passages' : 'Moyenne quotidienne'} du ${periodStart} au ${periodEnd}`;
+
   return (
     <div className="w-full h-full">
-      <div className="mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">
-          Répartition par jour de la semaine
-        </h3>
-        <p className="text-sm text-gray-600">
-          {type === 'total' ? 'Total des passages' : 'Moyenne quotidienne'} du {periodStart} au {periodEnd}
-        </p>
-      </div>
+      {showHeader && (
+        <ChartHeader 
+          title={defaultTitle}
+          description={defaultDescription}
+        />
+      )}
       
       <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={data}
-            cx="50%"
-            cy="50%"
-            labelLine={false}
-            label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
-            outerRadius={120}
-            fill="#8884d8"
-            dataKey="value"
+        <BarChart data={data} margin={{ top: 20, right: 40, left: 30, bottom: 20 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+          <XAxis 
+            dataKey="name" 
+            fontSize={14}
+            stroke="#6b7280"
+            tickMargin={10}
+          />
+          <YAxis 
+            fontSize={14}
+            stroke="#6b7280"
+            tickFormatter={(value) => value.toLocaleString()}
+            tickMargin={10}
+            domain={[0, yAxisMax]}
+          />
+          <Tooltip content={<CustomTooltip />} />
+          
+          <Bar 
+            dataKey="value" 
+            name={type === 'total' ? 'Total passages' : 'Moyenne passages/jour'}
+            radius={[4, 4, 0, 0]}
           >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
-          </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          <Legend content={<CustomLegend />} />
-        </PieChart>
+          </Bar>
+        </BarChart>
       </ResponsiveContainer>
 
       {/* Statistiques détaillées */}
