@@ -1,7 +1,7 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getStartOfYearParis, getEndOfYearParis } from "./dateHelpers";
+import { getStartOfYearParis, getEndOfYearParis } from "../../helpers/dateHelpers";
 
 export async function getYearlyStats(counterId: string) {
   const firstPassage = await prisma.counterTimeseries.findFirst({

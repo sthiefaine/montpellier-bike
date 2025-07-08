@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { defaultCenters } from "@/lib/defaultCenters";
-import { getBeforeYesterdayBoundsParis } from "@/actions/counters/dateHelpers";
+import { getBeforeYesterdayBoundsParis } from "@/helpers/dateHelpers";
 
 type WeatherRecord = {
   zone: string;

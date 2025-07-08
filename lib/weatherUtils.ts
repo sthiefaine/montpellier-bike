@@ -27,22 +27,21 @@ export const WEATHER_CODES = {
   HEAVY_SNOW_SHOWERS: 86,
   THUNDERSTORM: 95,
   THUNDERSTORM_HAIL: 96,
-  THUNDERSTORM_HEAVY_HAIL: 99
+  THUNDERSTORM_HEAVY_HAIL: 99,
 } as const;
 
-// Fonction pour déterminer si il pleut basée sur le code météo Open-Meteo
 export function isRaining(weatherCode: number): boolean {
-  const rainCodes = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99];
+  const rainCodes = [
+    51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99,
+  ];
   return rainCodes.includes(weatherCode);
 }
 
-// Fonction pour déterminer si il fait nuageux basée sur le code météo Open-Meteo
 export function isCloudy(weatherCode: number): boolean {
   const cloudyCodes = [1, 2, 3];
   return cloudyCodes.includes(weatherCode);
 }
 
-// Fonction pour obtenir la description météo Open-Meteo
 export function getWeatherDescription(weatherCode: number): string {
   const descriptions: { [key: number]: string } = {
     0: "Ciel dégagé",
@@ -72,13 +71,12 @@ export function getWeatherDescription(weatherCode: number): string {
     86: "Averses de neige fortes",
     95: "Orage",
     96: "Orage avec grêle légère",
-    99: "Orage avec grêle forte"
+    99: "Orage avec grêle forte",
   };
-  
+
   return descriptions[weatherCode] || "Conditions météo inconnues";
 }
 
-// Fonction pour obtenir l'icône météo Open-Meteo
 export function getWeatherIcon(weatherCode: number): string {
   const icons: { [key: number]: string } = {
     0: "☀️",
@@ -108,13 +106,12 @@ export function getWeatherIcon(weatherCode: number): string {
     86: "🌨️",
     95: "⛈️",
     96: "⛈️",
-    99: "⛈️"
+    99: "⛈️",
   };
-  
+
   return icons[weatherCode] || "🌤️";
 }
 
-// Fonction pour obtenir la couleur de l'icône météo
 export function getWeatherIconColor(weatherCode: number): string {
   if (isRaining(weatherCode)) {
     return "text-blue-600";
@@ -123,4 +120,4 @@ export function getWeatherIconColor(weatherCode: number): string {
     return "text-gray-600";
   }
   return "text-yellow-600";
-} 
+}

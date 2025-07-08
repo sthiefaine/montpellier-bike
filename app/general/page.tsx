@@ -8,6 +8,7 @@ import {
   getHourlyDistributionStatsWithFilter,
   getAvailableYears,
 } from "@/actions/counters/daily";
+import { getStartOfDayParis, getEndOfDayParis } from "@/helpers/dateHelpers";
 import GeneralPageClient from "./GeneralPageClient";
 
 // Fonction pour précharger toutes les données

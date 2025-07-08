@@ -6,7 +6,7 @@ import {
   getEndOfWeek,
   getStartOfYearParis,
   getEndOfYearParis,
-} from "./dateHelpers";
+} from "../../helpers/dateHelpers";
 
 export async function getWeeklyStats(counterId: string) {
   const now = new Date();

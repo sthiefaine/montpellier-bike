@@ -8,7 +8,7 @@ import {
   getStartOfWeek,
   getStartOfWeekParis,
   getEndOfWeekParis,
-} from "./dateHelpers";
+} from "../../helpers/dateHelpers";
 import { HourlyStats } from "@/types/counters/counters";
 import { HourlyStatsDetailsTypes } from "@/types/counters/details";
 

@@ -67,9 +67,9 @@ export default function CounterGlobalDailyChart({
 
   return (
     <div className="mb-2 h-full flex flex-col w-full">
-      <h4 className="text-sm font-semibold text-gray-900 pl-4 mb-2">
+      <h3 className="text-lg font-semibold text-gray-900">
         Total des passages par jour ({currentYear})
-      </h4>
+      </h3>
       <div className="flex-1 bg-white p-2 rounded-lg shadow-sm">
         <div className="w-full h-[calc(100%-50px)]">
           <ResponsiveContainer width="100%" height={200}>

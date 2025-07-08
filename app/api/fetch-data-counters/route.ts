@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getBeforeYesterdayBoundsParis } from "@/actions/counters/dateHelpers";
+import { getBeforeYesterdayBoundsParis } from "@/helpers/dateHelpers";
 import { getCurrentSerialNumber } from "@/helpers";
 
 function toISO(date: Date) {

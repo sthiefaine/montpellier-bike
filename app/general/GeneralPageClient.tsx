@@ -79,12 +79,23 @@ export default function GeneralPageClient({
   const [hourlyDistributionStats, setHourlyDistributionStats] = useState(
     preloadedData.hourlyDataGlobal
   );
+  
+  // États pour afficher/masquer les périodes
+  const [showPeriod1, setShowPeriod1] = useState(true);
+  const [showPeriod2, setShowPeriod2] = useState(true);
 
   // Fonction pour recharger les données
   const handleReloadData = async () => {
     setIsLoading(true);
     try {
       const year = new Date(startDate).getFullYear().toString();
+
+      // Utiliser directement les dates sélectionnées
+      // Les actions SQL gèrent déjà le fuseau horaire avec AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'
+      const startDateParis = startDate;
+      const endDateParis = endDate;
+      const startDate2Paris = startDate2;
+      const endDate2Paris = endDate2;
 
       const [
         dailyData,
@@ -96,17 +107,17 @@ export default function GeneralPageClient({
         hourlyDataWeekend,
       ] = await Promise.all([
         getGlobalDailyStatsForYear(year),
-        getGlobalDailyStatsForPeriod(startDate, endDate),
+        getGlobalDailyStatsForPeriod(startDateParis, endDateParis),
         getGlobalEvolutionStatsForPeriods(
-          startDate,
-          endDate,
-          startDate2,
-          endDate2
+          startDateParis,
+          endDateParis,
+          startDate2Paris,
+          endDate2Paris
         ),
-        getDailyDistributionStats(startDate, endDate),
-        getHourlyDistributionStatsWithFilter(startDate, endDate, "global"),
-        getHourlyDistributionStatsWithFilter(startDate, endDate, "week"),
-        getHourlyDistributionStatsWithFilter(startDate, endDate, "weekend"),
+        getDailyDistributionStats(startDateParis, endDateParis),
+        getHourlyDistributionStatsWithFilter(startDateParis, endDateParis, "global"),
+        getHourlyDistributionStatsWithFilter(startDateParis, endDateParis, "week"),
+        getHourlyDistributionStatsWithFilter(startDateParis, endDateParis, "weekend"),
       ]);
 
       setGlobalDailyStats(dailyData);
@@ -346,10 +357,30 @@ export default function GeneralPageClient({
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
                           <span>Période 1</span>
+                          <button
+                            onClick={() => setShowPeriod1(!showPeriod1)}
+                            className={`px-2 py-1 text-xs font-medium rounded transition-colors duration-200 ${
+                              showPeriod1
+                                ? "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                            }`}
+                          >
+                            {showPeriod1 ? "Masquer" : "Afficher"}
+                          </button>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                           <span>Période 2</span>
+                          <button
+                            onClick={() => setShowPeriod2(!showPeriod2)}
+                            className={`px-2 py-1 text-xs font-medium rounded transition-colors duration-200 ${
+                              showPeriod2
+                                ? "bg-green-100 text-green-700 hover:bg-green-200"
+                                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                            }`}
+                          >
+                            {showPeriod2 ? "Masquer" : "Afficher"}
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -362,6 +393,8 @@ export default function GeneralPageClient({
                       isLoading={isLoading}
                       aggregation={aggregation}
                       showHeader={false}
+                      showPeriod1={showPeriod1}
+                      showPeriod2={showPeriod2}
                     />
                   </div>
                 </div>

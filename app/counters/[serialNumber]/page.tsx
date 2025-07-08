@@ -16,6 +16,7 @@ import { PreloadedCounterDetailsData } from "@/types/counters/details";
 import CounterDetailsHourlyStats from "@/components/Stats/Details/CounterDetailsHourlyStats";
 import { prisma } from "@/lib/prisma";
 import { getMapStyle } from "@/actions/map";
+import { getCurrentSerialNumber } from "@/helpers";
 
 export async function generateStaticParams() {
   const counters = await prisma.bikeCounter.findMany({
@@ -80,10 +81,10 @@ export default async function CounterDetailsPage({
 
   const currentYear = new Date().getFullYear().toString();
 
-  const fixedSerialNumber =
-  counter.serialNumber1 && /^[a-zA-Z]/.test(counter.serialNumber1)
-    ? counter.serialNumber1
-    : counter.serialNumber;
+  const fixedSerialNumber = getCurrentSerialNumber(
+    counter.serialNumber,
+    counter.serialNumber1
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -92,14 +93,6 @@ export default async function CounterDetailsPage({
         <div className="bg-white rounded-xl shadow-lg p-4 mb-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
             <div>
-              <div className="flex items-center gap-2">
-                <Link
-                  href="/"
-                  className="text-blue-600 hover:text-blue-800 transition-colors text-sm"
-                >
-                  ← Retour à la carte
-                </Link>
-              </div>
               <h1 className="text-2xl font-bold text-gray-900">
                 {counter.name}
               </h1>

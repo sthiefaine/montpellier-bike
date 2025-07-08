@@ -32,6 +32,8 @@ interface CounterEvolutionChartProps {
   title?: string;
   description?: string;
   showHeader?: boolean;
+  showPeriod1?: boolean;
+  showPeriod2?: boolean;
 }
 
 const formatDate = (dateString: string, aggregation: "days" | "weeks") => {
@@ -86,6 +88,8 @@ export default function CounterEvolutionChart({
   title,
   description,
   showHeader = true,
+  showPeriod1 = true,
+  showPeriod2 = true,
 }: CounterEvolutionChartProps) {
   if (isLoading) {
     return (
@@ -219,27 +223,31 @@ export default function CounterEvolutionChart({
           <Tooltip content={<CustomTooltip />} />
           <Legend />
 
-          {/* Lignes pour l'année actuelle */}
-          <Line
-            type="monotone"
-            dataKey="currentTotal"
-            stroke="#3b82f6"
-            strokeWidth={3}
-            dot={false}
-            activeDot={{ r: 5, stroke: "#3b82f6", strokeWidth: 2 }}
-            name={`Total ${currentYear}`}
-          />
+          {/* Lignes pour l'année actuelle (Période 1) */}
+          {showPeriod1 && (
+            <Line
+              type="monotone"
+              dataKey="currentTotal"
+              stroke="#3b82f6"
+              strokeWidth={3}
+              dot={false}
+              activeDot={{ r: 5, stroke: "#3b82f6", strokeWidth: 2 }}
+              name={`Total ${currentYear}`}
+            />
+          )}
 
-          {/* Lignes pour l'année précédente */}
-          <Line
-            type="monotone"
-            dataKey="previousTotal"
-            stroke="#10b981"
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 5, stroke: "#10b981", strokeWidth: 2 }}
-            name={`Total ${previousYear}`}
-          />
+          {/* Lignes pour l'année précédente (Période 2) */}
+          {showPeriod2 && (
+            <Line
+              type="monotone"
+              dataKey="previousTotal"
+              stroke="#10b981"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 5, stroke: "#10b981", strokeWidth: 2 }}
+              name={`Total ${previousYear}`}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </div>

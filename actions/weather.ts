@@ -174,12 +174,42 @@ export async function getTodayWeather() {
   try {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const weather = await prisma.$queryRaw`
+      SELECT * FROM "daily_weather"
+      WHERE date >= ${today}
+        AND date < ${today} + INTERVAL '1 day'
+      ORDER BY date ASC
+      LIMIT 1
+    `;
 
-    const weather = await prisma.dailyWeather.findUnique({
-      where: { date: today },
-    });
+    if (!weather || (Array.isArray(weather) && weather.length === 0)) {
+      console.log("Aucune donnée météo trouvée pour aujourd'hui");
+      // Essayer de récupérer les données d'hier comme fallback
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
 
-    return weather;
+      const yesterdayWeather = await prisma.$queryRaw`
+        SELECT * FROM "daily_weather" 
+        WHERE date >= ${yesterday}
+          AND date < ${yesterday} + INTERVAL '1 day'
+        ORDER BY date ASC
+        LIMIT 1
+      `;
+
+      if (
+        yesterdayWeather &&
+        Array.isArray(yesterdayWeather) &&
+        yesterdayWeather.length > 0
+      ) {
+        console.log("Utilisation des données météo d'hier comme fallback");
+        return yesterdayWeather[0];
+      }
+
+      return null;
+    }
+
+    return Array.isArray(weather) ? weather[0] : weather;
   } catch (error) {
     console.error("Erreur lors de la récupération de la météo du jour:", error);
     return null;

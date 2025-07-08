@@ -4,37 +4,37 @@ export const WEEK_DAYS_CONFIG = {
   monday: {
     key: "monday",
     name: dayFormatter.format(new Date(2024, 0, 1)),
-    color: "#9333EA",
+    color: "#3C82F6",
   },
   tuesday: {
     key: "tuesday",
     name: dayFormatter.format(new Date(2024, 0, 2)),
-    color: "#2563eb",
+    color: "#12B981",
   },
   wednesday: {
     key: "wednesday",
     name: dayFormatter.format(new Date(2024, 0, 3)),
-    color: "#00FF00",
+    color: "#F59E0C",
   },
   thursday: {
     key: "thursday",
     name: dayFormatter.format(new Date(2024, 0, 4)),
-    color: "#FF0000",
+    color: "#8B5CF6",
   },
   friday: {
     key: "friday",
     name: dayFormatter.format(new Date(2024, 0, 5)),
-    color: "#f59e0b",
+    color: "#06B6D4",
   },
   saturday: {
     key: "saturday",
     name: dayFormatter.format(new Date(2024, 0, 6)),
-    color: "#FFE000",
+    color: "#84CC15",
   },
   sunday: {
     key: "sunday",
     name: dayFormatter.format(new Date(2024, 0, 7)),
-    color: "#14b8a6",
+    color: "#EF4444",
   },
 } as const;
 

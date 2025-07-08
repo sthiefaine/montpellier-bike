@@ -5,6 +5,7 @@ import {
   DailyDataPoint,
   CounterGlobalDailyStats,
 } from "@/types/counters/counters";
+import { WEEK_DAYS_CONFIG } from "@/helpers";
 
 export async function getDailyStatsForYear(counterId: string) {
   const now = new Date();
@@ -56,7 +57,9 @@ export async function getDailyStatsForYear(counterId: string) {
   };
 }
 
-export async function getGlobalDailyStatsForYear(year?: string): Promise<CounterGlobalDailyStats> {
+export async function getGlobalDailyStatsForYear(
+  year?: string
+): Promise<CounterGlobalDailyStats> {
   const now = new Date();
   const selectedYear = year ? parseInt(year) : now.getFullYear();
   const today = new Date().toISOString().split("T")[0]; // Format YYYY-MM-DD
@@ -105,7 +108,9 @@ export async function getGlobalDailyStatsForYear(year?: string): Promise<Counter
 
   const filteredResult = filterConsecutiveZeros(result, 2);
 
-  const dailyTotals = filteredResult.reduce((acc, curr) => {
+  const activeDaysData = filteredResult.filter(item => item.value > 0);
+
+  const dailyTotals = activeDaysData.reduce((acc, curr) => {
     const date = new Date(curr.day);
     const dayOfWeek = date.getDay();
     const dayName = dayNames[dayOfWeek];
@@ -143,7 +148,10 @@ export async function getGlobalDailyStatsForYear(year?: string): Promise<Counter
   };
 }
 
-export async function getGlobalDailyStatsForPeriod(startDate: string, endDate: string): Promise<CounterGlobalDailyStats> {
+export async function getGlobalDailyStatsForPeriod(
+  startDate: string,
+  endDate: string
+): Promise<CounterGlobalDailyStats> {
   const dayNames = [
     "sunday",
     "monday",
@@ -185,7 +193,10 @@ export async function getGlobalDailyStatsForPeriod(startDate: string, endDate: s
 
   const filteredResult = filterConsecutiveZeros(result, 2);
 
-  const dailyTotals = filteredResult.reduce((acc, curr) => {
+  // Filtrer les jours avec 0 passages pour les totaux par jour de la semaine
+  const activeDaysData = filteredResult.filter(item => item.value > 0);
+
+  const dailyTotals = activeDaysData.reduce((acc, curr) => {
     const date = new Date(curr.day);
     const dayOfWeek = date.getDay();
     const dayName = dayNames[dayOfWeek];
@@ -274,26 +285,27 @@ function filterConsecutiveZeros(
 export async function getGlobalFrequentationStats(
   startDate: string,
   endDate: string,
-  aggregation: 'week' | 'month' = 'week',
+  aggregation: "week" | "month" = "week",
   includePreviousYear: boolean = true
 ) {
   const start = new Date(startDate);
   const end = new Date(endDate);
-  
+
   // Calculer la période de l'année précédente
   const previousYearStart = new Date(start);
   previousYearStart.setFullYear(previousYearStart.getFullYear() - 1);
   const previousYearEnd = new Date(end);
   previousYearEnd.setFullYear(previousYearEnd.getFullYear() - 1);
 
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
   // Requête simplifiée pour l'année courante
   const currentYearQuery = `
     SELECT 
-      ${aggregation === 'week' 
-        ? "to_char(date_trunc('week', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')), 'YYYY-MM-DD')" 
-        : "to_char(date_trunc('month', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')), 'YYYY-MM')"
+      ${
+        aggregation === "week"
+          ? "to_char(date_trunc('week', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')), 'YYYY-MM-DD')"
+          : "to_char(date_trunc('month', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')), 'YYYY-MM')"
       } as period,
       AVG(daily_sum) as value
     FROM (
@@ -307,9 +319,10 @@ export async function getGlobalFrequentationStats(
     ) daily_totals
     CROSS JOIN "CounterTimeseries" ct
     WHERE date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = daily_totals.day
-    GROUP BY ${aggregation === 'week' 
-      ? "date_trunc('week', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))" 
-      : "date_trunc('month', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))"
+    GROUP BY ${
+      aggregation === "week"
+        ? "date_trunc('week', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))"
+        : "date_trunc('month', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))"
     }
     ORDER BY period
   `;
@@ -317,9 +330,10 @@ export async function getGlobalFrequentationStats(
   // Requête simplifiée pour l'année précédente
   const previousYearQuery = `
     SELECT 
-      ${aggregation === 'week' 
-        ? "to_char(date_trunc('week', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')), 'YYYY-MM-DD')" 
-        : "to_char(date_trunc('month', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')), 'YYYY-MM')"
+      ${
+        aggregation === "week"
+          ? "to_char(date_trunc('week', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')), 'YYYY-MM-DD')"
+          : "to_char(date_trunc('month', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')), 'YYYY-MM')"
       } as period,
       AVG(daily_sum) as value
     FROM (
@@ -333,17 +347,24 @@ export async function getGlobalFrequentationStats(
     ) daily_totals
     CROSS JOIN "CounterTimeseries" ct
     WHERE date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = daily_totals.day
-    GROUP BY ${aggregation === 'week' 
-      ? "date_trunc('week', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))" 
-      : "date_trunc('month', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))"
+    GROUP BY ${
+      aggregation === "week"
+        ? "date_trunc('week', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))"
+        : "date_trunc('month', date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'))"
     }
     ORDER BY period
   `;
 
   try {
     const [currentYearData, previousYearData] = await Promise.all([
-      prisma.$queryRaw<{ period: string; value: number }[]>(Prisma.raw(currentYearQuery)),
-      includePreviousYear ? prisma.$queryRaw<{ period: string; value: number }[]>(Prisma.raw(previousYearQuery)) : Promise.resolve([])
+      prisma.$queryRaw<{ period: string; value: number }[]>(
+        Prisma.raw(currentYearQuery)
+      ),
+      includePreviousYear
+        ? prisma.$queryRaw<{ period: string; value: number }[]>(
+            Prisma.raw(previousYearQuery)
+          )
+        : Promise.resolve([]),
     ]);
 
     return {
@@ -353,10 +374,10 @@ export async function getGlobalFrequentationStats(
       startDate: formatDate(start),
       endDate: formatDate(end),
       previousYearStartDate: formatDate(previousYearStart),
-      previousYearEndDate: formatDate(previousYearEnd)
+      previousYearEndDate: formatDate(previousYearEnd),
     };
   } catch (error) {
-    console.error('Erreur dans getGlobalFrequentationStats:', error);
+    console.error("Erreur dans getGlobalFrequentationStats:", error);
     return {
       currentYear: [],
       previousYear: [],
@@ -364,7 +385,7 @@ export async function getGlobalFrequentationStats(
       startDate: formatDate(start),
       endDate: formatDate(end),
       previousYearStartDate: formatDate(previousYearStart),
-      previousYearEndDate: formatDate(previousYearEnd)
+      previousYearEndDate: formatDate(previousYearEnd),
     };
   }
 }
@@ -373,12 +394,12 @@ export async function getGlobalEvolutionStats() {
   const now = new Date();
   const currentYear = now.getFullYear();
   const previousYear = currentYear - 1;
-  
+
   // Date actuelle de l'année précédente
   const previousYearSameDate = new Date(now);
   previousYearSameDate.setFullYear(previousYear);
 
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
   const currentDate = formatDate(now);
   const previousYearDate = formatDate(previousYearSameDate);
 
@@ -426,23 +447,27 @@ export async function getGlobalEvolutionStats() {
 
   try {
     const [currentYearData, previousYearData] = await Promise.all([
-      prisma.$queryRaw<{ day: string; total: number; average: number }[]>(Prisma.raw(currentYearQuery)),
-      prisma.$queryRaw<{ day: string; total: number; average: number }[]>(Prisma.raw(previousYearQuery))
+      prisma.$queryRaw<{ day: string; total: number; average: number }[]>(
+        Prisma.raw(currentYearQuery)
+      ),
+      prisma.$queryRaw<{ day: string; total: number; average: number }[]>(
+        Prisma.raw(previousYearQuery)
+      ),
     ]);
 
     return {
       currentYear: currentYearData,
       previousYear: previousYearData,
       currentYearDate: currentDate,
-      previousYearDate: previousYearDate
+      previousYearDate: previousYearDate,
     };
   } catch (error) {
-    console.error('Erreur dans getGlobalEvolutionStats:', error);
+    console.error("Erreur dans getGlobalEvolutionStats:", error);
     return {
       currentYear: [],
       previousYear: [],
       currentYearDate: currentDate,
-      previousYearDate: previousYearDate
+      previousYearDate: previousYearDate,
     };
   }
 }
@@ -453,7 +478,7 @@ export async function getGlobalEvolutionStatsForPeriods(
   period2Start: string,
   period2End: string
 ) {
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
   // Requête pour la première période
   const period1Query = `
@@ -499,23 +524,27 @@ export async function getGlobalEvolutionStatsForPeriods(
 
   try {
     const [period1Data, period2Data] = await Promise.all([
-      prisma.$queryRaw<{ day: string; total: number; average: number }[]>(Prisma.raw(period1Query)),
-      prisma.$queryRaw<{ day: string; total: number; average: number }[]>(Prisma.raw(period2Query))
+      prisma.$queryRaw<{ day: string; total: number; average: number }[]>(
+        Prisma.raw(period1Query)
+      ),
+      prisma.$queryRaw<{ day: string; total: number; average: number }[]>(
+        Prisma.raw(period2Query)
+      ),
     ]);
 
     return {
       currentYear: period1Data,
       previousYear: period2Data,
       currentYearDate: period1End,
-      previousYearDate: period2End
+      previousYearDate: period2End,
     };
   } catch (error) {
-    console.error('Erreur dans getGlobalEvolutionStatsForPeriods:', error);
+    console.error("Erreur dans getGlobalEvolutionStatsForPeriods:", error);
     return {
       currentYear: [],
       previousYear: [],
       currentYearDate: period1End,
-      previousYearDate: period2End
+      previousYearDate: period2End,
     };
   }
 }
@@ -524,7 +553,7 @@ export async function getWeekendVsWeekdayStats(
   startDate: string,
   endDate: string
 ) {
-  const formatDate = (date: Date) => date.toISOString().split('T')[0];
+  const formatDate = (date: Date) => date.toISOString().split("T")[0];
 
   const query = `
     SELECT 
@@ -539,47 +568,61 @@ export async function getWeekendVsWeekdayStats(
   `;
 
   try {
-    const data = await prisma.$queryRaw<{ day: string; day_of_week: number; total: number }[]>(Prisma.raw(query));
-    
+    const data = await prisma.$queryRaw<
+      { day: string; day_of_week: number; total: number }[]
+    >(Prisma.raw(query));
+
     // Séparer les données en semaine (0-4) et week-end (5-6)
-    const weekdays = data.filter(item => item.day_of_week >= 1 && item.day_of_week <= 5);
-    const weekends = data.filter(item => item.day_of_week === 0 || item.day_of_week === 6);
-    
+    const weekdays = data.filter(
+      (item) => item.day_of_week >= 1 && item.day_of_week <= 5
+    );
+    const weekends = data.filter(
+      (item) => item.day_of_week === 0 || item.day_of_week === 6
+    );
+
     // Calculer les moyennes
-    const weekdayAverage = weekdays.length > 0 
-      ? Math.round(weekdays.reduce((sum, item) => sum + item.total, 0) / weekdays.length)
-      : 0;
-    
-    const weekendAverage = weekends.length > 0
-      ? Math.round(weekends.reduce((sum, item) => sum + item.total, 0) / weekends.length)
-      : 0;
-    
+    const weekdayAverage =
+      weekdays.length > 0
+        ? Math.round(
+            weekdays.reduce((sum, item) => sum + item.total, 0) /
+              weekdays.length
+          )
+        : 0;
+
+    const weekendAverage =
+      weekends.length > 0
+        ? Math.round(
+            weekends.reduce((sum, item) => sum + item.total, 0) /
+              weekends.length
+          )
+        : 0;
+
     // Calculer les totaux
     const weekdayTotal = weekdays.reduce((sum, item) => sum + item.total, 0);
     const weekendTotal = weekends.reduce((sum, item) => sum + item.total, 0);
-    
+
     return {
       weekdays: {
         total: weekdayTotal,
         average: weekdayAverage,
-        count: weekdays.length
+        count: weekdays.length,
       },
       weekends: {
         total: weekendTotal,
         average: weekendAverage,
-        count: weekends.length
+        count: weekends.length,
       },
       period: {
         start: startDate,
-        end: endDate
-      }
+        end: endDate,
+      },
     };
   } catch (error) {
-    console.error('Erreur dans getWeekendVsWeekdayStats:', error);
+    console.error("Erreur dans getWeekendVsWeekdayStats:", error);
     return {
       weekdays: { total: 0, average: 0, count: 0 },
       weekends: { total: 0, average: 0, count: 0 },
-      period: { start: startDate, end: endDate }
+      period: { start: startDate, end: endDate },
     };
   }
 }
@@ -590,68 +633,96 @@ export async function getDailyDistributionStats(
 ) {
   try {
     const query = `
+      WITH dates AS (
+        SELECT generate_series(
+          '${startDate}'::date,
+          '${endDate}'::date,
+          interval '1 day'
+        )::date as date
+      )
       SELECT 
-        to_char(date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'), 'YYYY-MM-DD') as day,
-        SUM(ct.value)::integer as total
-      FROM "CounterTimeseries" ct
-      WHERE ct.date >= '${startDate}'::date
-        AND ct.date <= '${endDate}'::date
-      GROUP BY date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
-      ORDER BY day
+        dates.date::text as day,
+        COALESCE(SUM(ct.value), 0)::integer as total
+      FROM dates
+      LEFT JOIN "CounterTimeseries" ct ON 
+        date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = dates.date
+      GROUP BY dates.date
+      ORDER BY dates.date
     `;
-    
-    const dailyData = await prisma.$queryRaw<{ day: string; total: number }[]>(Prisma.raw(query));
-    
+
+    const dailyData = await prisma.$queryRaw<{ day: string; total: number }[]>(
+      Prisma.raw(query)
+    );
+
     if (!dailyData || dailyData.length === 0) {
       return {
         distribution: [],
-        period: { start: startDate, end: endDate }
+        period: { start: startDate, end: endDate },
       };
     }
-    
+
+    // Filtrer les jours avec 0 passages
+    const activeDaysData = dailyData.filter(item => item.total > 0);
+
     const dayStats: { [key: number]: { total: number; count: number } } = {};
-    
-    dailyData.forEach(item => {
+
+    // Ne traiter que les jours avec des passages > 0
+    activeDaysData.forEach((item) => {
       const date = new Date(item.day);
       const dayOfWeek = date.getDay();
-      
+
       if (!dayStats[dayOfWeek]) {
         dayStats[dayOfWeek] = { total: 0, count: 0 };
       }
-      
+
       dayStats[dayOfWeek].total += item.total;
       dayStats[dayOfWeek].count += 1;
     });
-    
-    const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    const colors = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#84cc16'];
-    
-    const distribution = Object.entries(dayStats).map(([dayOfWeekStr, stats]) => {
-      const dayOfWeek = parseInt(dayOfWeekStr);
-      return {
-        name: dayNames[dayOfWeek],
-        total: stats.total,
-        average: Math.round(stats.total / stats.count),
-        count: stats.count,
-        color: colors[dayOfWeek],
-        dayOfWeek: dayOfWeek
-      };
-    });
-    
+
+    const weekDaysOrder = [
+      "monday",
+      "tuesday",
+      "wednesday",
+      "thursday",
+      "friday",
+      "saturday",
+      "sunday",
+    ];
+    const dayMapping = [6, 0, 1, 2, 3, 4, 5];
+
+    const distribution = Object.entries(dayStats).map(
+      ([dayOfWeekStr, stats]) => {
+        const dayOfWeek = parseInt(dayOfWeekStr);
+        const mappedIndex = dayMapping[dayOfWeek];
+        const weekDayKey = weekDaysOrder[mappedIndex];
+        const weekDayConfig =
+          WEEK_DAYS_CONFIG[weekDayKey as keyof typeof WEEK_DAYS_CONFIG];
+
+        return {
+          name: weekDayConfig.name,
+          total: stats.total,
+          average: Math.round(stats.total / stats.count),
+          count: stats.count,
+          color: weekDayConfig.color,
+          dayOfWeek: mappedIndex,
+        };
+      }
+    );
+
     distribution.sort((a, b) => a.dayOfWeek - b.dayOfWeek);
-    
+
     return {
       distribution,
       period: {
         start: startDate,
-        end: endDate
-      }
+        end: endDate,
+      },
     };
   } catch (error) {
-    console.error('Erreur dans getDailyDistributionStats:', error);
+    console.error("Erreur dans getDailyDistributionStats:", error);
     return {
       distribution: [],
-      period: { start: startDate, end: endDate }
+      period: { start: startDate, end: endDate },
     };
   }
 }
@@ -666,19 +737,24 @@ export async function getAvailableYears() {
       GROUP BY EXTRACT(YEAR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
       ORDER BY year DESC
     `;
-    
-    const years = await prisma.$queryRaw<{ year: any; record_count: any }[]>(Prisma.raw(query));
-    console.log('Années disponibles avec données:', years);
-    
+
+    const years = await prisma.$queryRaw<{ year: any; record_count: any }[]>(
+      Prisma.raw(query)
+    );
+    console.log("Années disponibles avec données:", years);
+
     // Convertir les Decimal en nombres
-    const convertedYears = years.map(year => ({
+    const convertedYears = years.map((year) => ({
       year: Number(year.year),
-      record_count: Number(year.record_count)
+      record_count: Number(year.record_count),
     }));
-    
+
     return convertedYears;
   } catch (error) {
-    console.error('Erreur lors de la récupération des années disponibles:', error);
+    console.error(
+      "Erreur lors de la récupération des années disponibles:",
+      error
+    );
     return [];
   }
 }
@@ -688,159 +764,189 @@ export async function getHourlyDistributionStats(
   endDate: string
 ) {
   try {
-    console.log('getHourlyDistributionStats appelé avec:', { startDate, endDate });
-    
-    // Requête SQL corrigée pour calculer correctement total et moyenne par heure
+    console.log("getHourlyDistributionStats appelé avec:", {
+      startDate,
+      endDate,
+    });
+
+    // Requête SQL corrigée pour compter les jours distincts et filtrer les heures avec 0 passages
     const query = `
-      WITH daily_hourly_totals AS (
+      WITH hours AS (
+        SELECT generate_series(0, 23) as hour
+      ),
+      daily_hourly_totals AS (
         SELECT 
-          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as hour,
-          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day,
-          SUM(ct.value)::integer as daily_hour_total
+          EXTRACT(HOUR FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris') as hour,
+          SUM(ct.value)::integer as total,
+          COUNT(DISTINCT DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')) as day_count,
+          ROUND(AVG(ct.value))::integer as average
         FROM "CounterTimeseries" ct
-        WHERE ct.date >= '${startDate}'::date
-          AND ct.date <= '${endDate}'::date
+        WHERE DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') >= '${startDate}'::date
+          AND DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') <= '${endDate}'::date
         GROUP BY 
-          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'),
-          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
+          EXTRACT(HOUR FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris')
       )
       SELECT 
-        hour,
-        SUM(daily_hour_total)::integer as total,
-        COUNT(*) as day_count,
-        ROUND(AVG(daily_hour_total))::integer as average
-      FROM daily_hourly_totals
-      GROUP BY hour
-      ORDER BY hour
+        h.hour,
+        COALESCE(dht.total, 0)::integer as total,
+        COALESCE(dht.day_count, 0) as day_count,
+        COALESCE(dht.average, 0)::integer as average
+      FROM hours h
+      LEFT JOIN daily_hourly_totals dht ON h.hour = dht.hour
+      WHERE COALESCE(dht.total, 0) > 0
+      ORDER BY h.hour
     `;
-    
-    console.log('Exécution de la requête horaire:', query);
-    const hourlyData = await prisma.$queryRaw<{ hour: any; total: any; day_count: any; average: any }[]>(Prisma.raw(query));
-    console.log('Résultats de la requête horaire:', hourlyData);
-    
+
+    console.log("Exécution de la requête horaire:", query);
+    const hourlyData = await prisma.$queryRaw<
+      { hour: any; total: any; day_count: any; average: any }[]
+    >(Prisma.raw(query));
+    console.log("Résultats de la requête horaire:", hourlyData);
+
     if (!hourlyData || hourlyData.length === 0) {
-      console.log('Aucune donnée horaire trouvée');
+      console.log("Aucune donnée horaire trouvée");
       return {
         distribution: [],
-        period: { start: startDate, end: endDate }
+        period: { start: startDate, end: endDate },
       };
     }
-    
-    const distribution = hourlyData.map(item => ({
+
+    const distribution = hourlyData.map((item) => ({
       name: `${item.hour}h`,
       hour: Number(item.hour),
       total: Number(item.total),
-      average: Number(item.average),
-      count: Number(item.day_count)
+      average: Math.round(Number(item.total) / Number(item.day_count)),
+      count: Number(item.day_count),
     }));
-    
-    console.log('Distribution finale:', distribution);
-    
+
+    console.log("Distribution finale:", distribution);
+
     return {
       distribution,
       period: {
         start: startDate,
-        end: endDate
-      }
+        end: endDate,
+      },
     };
   } catch (error) {
-    console.error('Erreur dans getHourlyDistributionStats:', error);
+    console.error("Erreur dans getHourlyDistributionStats:", error);
     return {
       distribution: [],
-      period: { start: startDate, end: endDate }
+      period: { start: startDate, end: endDate },
     };
   }
 }
 
-export async function getGlobalAndByDayHourlyStats(startDate: string, endDate: string) {
+export async function getGlobalAndByDayHourlyStats(
+  startDate: string,
+  endDate: string
+) {
   try {
     // 1. Fréquentation horaire globale (tous jours confondus)
     const globalQuery = `
-      WITH daily_hourly_totals AS (
+      WITH hours AS (
+        SELECT generate_series(0, 23) as hour
+      ),
+      daily_hourly_totals AS (
         SELECT 
-          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as hour,
-          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day,
-          SUM(ct.value)::integer as daily_hour_total
+          EXTRACT(HOUR FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris') as hour,
+          SUM(ct.value)::integer as total,
+          COUNT(*) as day_count,
+          ROUND(AVG(ct.value))::integer as average
         FROM "CounterTimeseries" ct
-        WHERE ct.date >= '${startDate}'::date
-          AND ct.date <= '${endDate}'::date
+        WHERE DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') >= '${startDate}'::date
+          AND DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') <= '${endDate}'::date
         GROUP BY 
-          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'),
-          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
+          EXTRACT(HOUR FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris')
       )
       SELECT 
-        hour,
-        SUM(daily_hour_total)::integer as total,
-        COUNT(*) as day_count,
-        ROUND(AVG(daily_hour_total))::integer as average
-      FROM daily_hourly_totals
-      GROUP BY hour
-      ORDER BY hour
+        h.hour,
+        COALESCE(dht.total, 0)::integer as total,
+        COALESCE(dht.day_count, 0) as day_count,
+        COALESCE(dht.average, 0)::integer as average
+      FROM hours h
+      LEFT JOIN daily_hourly_totals dht ON h.hour = dht.hour
+      ORDER BY h.hour
     `;
-    const global = await prisma.$queryRaw<{ hour: number; total: number; day_count: number; average: number }[]>(Prisma.raw(globalQuery));
+    const global = await prisma.$queryRaw<
+      { hour: number; total: number; day_count: number; average: number }[]
+    >(Prisma.raw(globalQuery));
 
     // 2. Fréquentation horaire par jour de la semaine
     const byDayQuery = `
       WITH daily_hourly_byday AS (
         SELECT 
-          EXTRACT(DOW FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as dow,
-          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as hour,
-          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day,
-          SUM(ct.value)::integer as daily_hour_total
+          EXTRACT(DOW FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris') as dow,
+          EXTRACT(HOUR FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris') as hour,
+          SUM(ct.value)::integer as total,
+          COUNT(*) as day_count,
+          ROUND(AVG(ct.value))::integer as average
         FROM "CounterTimeseries" ct
-        WHERE ct.date >= '${startDate}'::date
-          AND ct.date <= '${endDate}'::date
+        WHERE DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') >= '${startDate}'::date
+          AND DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') <= '${endDate}'::date
         GROUP BY 
-          EXTRACT(DOW FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'),
-          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'),
-          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
+          EXTRACT(DOW FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris'),
+          EXTRACT(HOUR FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris')
       )
       SELECT 
         dow,
         hour,
-        SUM(daily_hour_total)::integer as total,
-        COUNT(*) as day_count,
-        ROUND(AVG(daily_hour_total))::integer as average
+        total,
+        day_count,
+        average
       FROM daily_hourly_byday
-      GROUP BY dow, hour
       ORDER BY dow, hour
     `;
-    const byDayRaw = await prisma.$queryRaw<{ dow: number; hour: number; total: number; day_count: number; average: number }[]>(Prisma.raw(byDayQuery));
+    const byDayRaw = await prisma.$queryRaw<
+      {
+        dow: number;
+        hour: number;
+        total: number;
+        day_count: number;
+        average: number;
+      }[]
+    >(Prisma.raw(byDayQuery));
 
     // On structure le résultat par jour de la semaine
     const byDay: Record<string, any[]> = {};
     for (let i = 0; i <= 6; i++) byDay[i] = [];
-    byDayRaw.forEach(item => {
+    byDayRaw.forEach((item) => {
       byDay[item.dow].push({
         hour: item.hour,
         total: item.total,
         average: item.average,
-        count: item.day_count
+        count: item.day_count,
       });
     });
 
     return {
-      global: global.map(item => ({
+      global: global.map((item) => ({
         hour: item.hour,
         total: item.total,
         average: item.average,
-        count: item.day_count
+        count: item.day_count,
       })),
-      byDay
+      byDay,
     };
   } catch (error) {
-    console.error('Erreur dans getGlobalAndByDayHourlyStats:', error);
+    console.error("Erreur dans getGlobalAndByDayHourlyStats:", error);
     return {
       global: [],
-      byDay: {}
+      byDay: {},
     };
   }
 }
 
-export async function getHourlyStatsByDayOfWeek(startDate: string, endDate: string) {
+export async function getHourlyStatsByDayOfWeek(
+  startDate: string,
+  endDate: string
+) {
   try {
-    console.log('getHourlyStatsByDayOfWeek appelé avec:', { startDate, endDate });
-    
+    console.log("getHourlyStatsByDayOfWeek appelé avec:", {
+      startDate,
+      endDate,
+    });
+
     // D'abord, vérifions s'il y a des données dans la période
     const countQuery = await prisma.$queryRaw<[{ count: bigint }]>(Prisma.sql`
       SELECT COUNT(*) as count
@@ -848,26 +954,31 @@ export async function getHourlyStatsByDayOfWeek(startDate: string, endDate: stri
       WHERE date >= ${startDate}::date
         AND date <= ${endDate}::date
     `);
-    
-    console.log('Nombre total d\'enregistrements dans la période:', countQuery[0].count);
-    
+
+    console.log(
+      "Nombre total d'enregistrements dans la période:",
+      countQuery[0].count
+    );
+
     if (Number(countQuery[0].count) === 0) {
-      console.log('Aucune donnée trouvée pour la période');
+      console.log("Aucune donnée trouvée pour la période");
       return [];
     }
-    
+
     // Requête avec conversion explicite des BigInt en nombres
-    const result = await prisma.$queryRaw<{
-      day_of_week: number;
-      day_name: string;
-      hour_of_day: number;
-      number_of_observations: bigint;
-      total_passages: bigint;
-      average_passages: number;
-      min_passages: number;
-      max_passages: number;
-      standard_deviation: number;
-    }[]>(Prisma.sql`
+    const result = await prisma.$queryRaw<
+      {
+        day_of_week: number;
+        day_name: string;
+        hour_of_day: number;
+        number_of_observations: bigint;
+        total_passages: bigint;
+        average_passages: number;
+        min_passages: number;
+        max_passages: number;
+        standard_deviation: number;
+      }[]
+    >(Prisma.sql`
       SELECT 
         EXTRACT(DOW FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day_of_week,
         CASE EXTRACT(DOW FROM date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
@@ -896,20 +1007,20 @@ export async function getHourlyStatsByDayOfWeek(startDate: string, endDate: stri
         day_of_week, 
         hour_of_day
     `);
-    
+
     // Convertir les BigInt en nombres normaux
-    const convertedResult = result.map(row => ({
+    const convertedResult = result.map((row) => ({
       ...row,
       number_of_observations: Number(row.number_of_observations),
-      total_passages: Number(row.total_passages)
+      total_passages: Number(row.total_passages),
     }));
-    
-    console.log('Résultat brut getHourlyStatsByDayOfWeek:', convertedResult);
-    console.log('Nombre de lignes retournées:', convertedResult.length);
-    
+
+    console.log("Résultat brut getHourlyStatsByDayOfWeek:", convertedResult);
+    console.log("Nombre de lignes retournées:", convertedResult.length);
+
     return convertedResult;
   } catch (error) {
-    console.error('Erreur dans getHourlyStatsByDayOfWeek:', error);
+    console.error("Erreur dans getHourlyStatsByDayOfWeek:", error);
     return [];
   }
 }
@@ -917,76 +1028,88 @@ export async function getHourlyStatsByDayOfWeek(startDate: string, endDate: stri
 export async function getHourlyDistributionStatsWithFilter(
   startDate: string,
   endDate: string,
-  filter: 'global' | 'week' | 'weekend'
+  filter: "global" | "week" | "weekend"
 ) {
   try {
-    console.log('getHourlyDistributionStatsWithFilter appelé avec:', { startDate, endDate, filter });
-    
-    let dayFilter = '';
-    if (filter === 'week') {
-      dayFilter = 'AND EXTRACT(DOW FROM ct.date AT TIME ZONE \'UTC\' AT TIME ZONE \'Europe/Paris\') BETWEEN 1 AND 5';
-    } else if (filter === 'weekend') {
-      dayFilter = 'AND EXTRACT(DOW FROM ct.date AT TIME ZONE \'UTC\' AT TIME ZONE \'Europe/Paris\') IN (0, 6)';
+    console.log("getHourlyDistributionStatsWithFilter appelé avec:", {
+      startDate,
+      endDate,
+      filter,
+    });
+
+    let dayFilter = "";
+    if (filter === "week") {
+      dayFilter =
+        "AND EXTRACT(DOW FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris') BETWEEN 1 AND 5";
+    } else if (filter === "weekend") {
+      dayFilter =
+        "AND EXTRACT(DOW FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris') IN (0, 6)";
     }
-    
+
     const query = `
-      WITH daily_hourly_totals AS (
+      WITH hours AS (
+        SELECT generate_series(0, 23) as hour
+      ),
+      daily_hourly_totals AS (
         SELECT 
-          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as hour,
-          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day,
-          SUM(ct.value)::integer as daily_hour_total
+          EXTRACT(HOUR FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris') as hour,
+          SUM(ct.value)::integer as total,
+          COUNT(DISTINCT DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')) as day_count,
+          ROUND(AVG(ct.value))::integer as average
         FROM "CounterTimeseries" ct
-        WHERE ct.date >= '${startDate}'::date
-          AND ct.date <= '${endDate}'::date
+        WHERE DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') >= '${startDate}'::date
+          AND DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') <= '${endDate}'::date
           ${dayFilter}
         GROUP BY 
-          EXTRACT(HOUR FROM ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris'),
-          date_trunc('day', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris')
+          EXTRACT(HOUR FROM (ct.date AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Paris')
       )
       SELECT 
-        hour,
-        SUM(daily_hour_total)::integer as total,
-        COUNT(*) as day_count,
-        ROUND(AVG(daily_hour_total))::integer as average
-      FROM daily_hourly_totals
-      GROUP BY hour
-      ORDER BY hour
+        h.hour,
+        COALESCE(dht.total, 0)::integer as total,
+        COALESCE(dht.day_count, 0) as day_count,
+        COALESCE(dht.average, 0)::integer as average
+      FROM hours h
+      LEFT JOIN daily_hourly_totals dht ON h.hour = dht.hour
+      WHERE COALESCE(dht.total, 0) > 0
+      ORDER BY h.hour
     `;
-    
-    console.log('Exécution de la requête horaire avec filtre:', query);
-    const hourlyData = await prisma.$queryRaw<{ hour: any; total: any; day_count: any; average: any }[]>(Prisma.raw(query));
-    console.log('Résultats de la requête horaire avec filtre:', hourlyData);
-    
+
+    console.log("Exécution de la requête horaire avec filtre:", query);
+    const hourlyData = await prisma.$queryRaw<
+      { hour: any; total: any; day_count: any; average: any }[]
+    >(Prisma.raw(query));
+    console.log("Résultats de la requête horaire avec filtre:", hourlyData);
+
     if (!hourlyData || hourlyData.length === 0) {
-      console.log('Aucune donnée horaire trouvée avec le filtre');
+      console.log("Aucune donnée horaire trouvée avec le filtre");
       return {
         distribution: [],
-        period: { start: startDate, end: endDate }
+        period: { start: startDate, end: endDate },
       };
     }
-    
-    const distribution = hourlyData.map(item => ({
+
+    const distribution = hourlyData.map((item) => ({
       name: `${item.hour}h`,
       hour: Number(item.hour),
       total: Number(item.total),
-      average: Number(item.average),
-      count: Number(item.day_count)
+      average: Math.round(Number(item.total) / Number(item.day_count)),
+      count: Number(item.day_count),
     }));
-    
-    console.log('Distribution finale avec filtre:', distribution);
-    
+
+    console.log("Distribution finale avec filtre:", distribution);
+
     return {
       distribution,
       period: {
         start: startDate,
-        end: endDate
-      }
+        end: endDate,
+      },
     };
   } catch (error) {
-    console.error('Erreur dans getHourlyDistributionStatsWithFilter:', error);
+    console.error("Erreur dans getHourlyDistributionStatsWithFilter:", error);
     return {
       distribution: [],
-      period: { start: startDate, end: endDate }
+      period: { start: startDate, end: endDate },
     };
   }
 }

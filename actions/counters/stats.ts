@@ -5,7 +5,7 @@ import {
   getBeforeYesterdayBoundsParis,
   getHoursOfDay,
   getYesterdayBoundsParis,
-} from "./dateHelpers";
+} from "../../helpers/dateHelpers";
 import { PreloadedCounterDetailsData } from "@/types/counters/details";
 
 export async function getCounterStats(counterId: string): Promise<PreloadedCounterDetailsData['counterStats']> {

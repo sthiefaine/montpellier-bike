@@ -6,7 +6,7 @@ import {
   getEndOfDay,
   getStartOfDay,
   getYesterdayBoundsParis,
-} from "./counters/dateHelpers";
+} from "../helpers/dateHelpers";
 
 export type Weather = {
   isRaining: boolean;
