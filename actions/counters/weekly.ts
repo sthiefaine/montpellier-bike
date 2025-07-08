@@ -1,7 +1,12 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getStartOfWeek, getEndOfWeek } from "./dateHelpers";
+import {
+  getStartOfWeek,
+  getEndOfWeek,
+  getStartOfYearParis,
+  getEndOfYearParis,
+} from "./dateHelpers";
 
 export async function getWeeklyStats(counterId: string) {
   const now = new Date();
@@ -133,33 +138,144 @@ export async function getGlobalWeeklyStatsForYear(year?: string) {
   const selectedYear = year ? parseInt(year) : new Date().getFullYear();
   const now = new Date();
 
-  const startDate = new Date(`${selectedYear}-01-01`);
-  const endDate = new Date(`${selectedYear}-12-31`);
+  const startDate = `${selectedYear}-01-01`;
+  const endDate = `${selectedYear}-12-31`;
 
   const result = await prisma.$queryRaw<{ week: string; value: number }[]>`
     WITH RECURSIVE weeks AS (
-      SELECT 
-        date_trunc('week', ${startDate}::date) as week_start
+      SELECT date_trunc('week', ${startDate}::date) + interval '1 day' as week_start
       UNION ALL
       SELECT week_start + interval '1 week'
       FROM weeks
       WHERE week_start < ${endDate}::date
+    ),
+    daily_totals AS (
+      SELECT
+        date_trunc('week', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') + interval '1 day' as week_start,
+        DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day,
+        SUM(ct.value) as daily_sum
+      FROM "CounterTimeseries" ct
+      WHERE ct.date >= ${startDate}::date
+        AND ct.date <= ${endDate}::date
+      GROUP BY week_start, day
     )
-    SELECT 
+    SELECT
       to_char(weeks.week_start, 'YYYY-MM-DD') as week,
-      COALESCE(SUM(ct.value), 0)::integer as value
+      COALESCE(ROUND(AVG(daily_totals.daily_sum) FILTER (WHERE daily_totals.daily_sum > 50), 0), 0)::integer as value
     FROM weeks
-    LEFT JOIN "CounterTimeseries" ct ON 
-      date_trunc('week', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = weeks.week_start
-    WHERE weeks.week_start <= CASE 
-      WHEN ${selectedYear} = ${now.getFullYear()} THEN date_trunc('week', (NOW() AT TIME ZONE 'Europe/Paris')::date)
-      ELSE ${endDate}::date
-    END
+    LEFT JOIN daily_totals ON daily_totals.week_start = weeks.week_start
+    WHERE weeks.week_start <= ${endDate}::date
     GROUP BY weeks.week_start
     ORDER BY weeks.week_start ASC
   `;
 
   return {
     year: result,
+  };
+}
+
+export async function getGlobalWeeklyStatsForYearComplete(year: string) {
+  const selectedYear = parseInt(year);
+  const startDate = `${selectedYear}-01-01`;
+  const endDate = `${selectedYear}-12-31`;
+
+  const result = await prisma.$queryRaw<{ week: string; value: number }[]>`
+    WITH RECURSIVE weeks AS (
+      SELECT date_trunc('week', ${startDate}::date) + interval '1 day' as week_start
+      UNION ALL
+      SELECT week_start + interval '1 week'
+      FROM weeks
+      WHERE week_start < ${endDate}::date
+    ),
+    daily_totals AS (
+      SELECT
+        date_trunc('week', ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') + interval '1 day' as week_start,
+        DATE(ct.date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') as day,
+        SUM(ct.value) as daily_sum
+      FROM "CounterTimeseries" ct
+      WHERE ct.date >= ${startDate}::date
+        AND ct.date <= ${endDate}::date
+      GROUP BY week_start, day
+    )
+    SELECT
+      to_char(weeks.week_start, 'YYYY-MM-DD') as week,
+      COALESCE(ROUND(AVG(daily_totals.daily_sum) FILTER (WHERE daily_totals.daily_sum > 50), 0), 0)::integer as value
+    FROM weeks
+    LEFT JOIN daily_totals ON daily_totals.week_start = weeks.week_start
+    WHERE weeks.week_start <= ${endDate}::date
+    GROUP BY weeks.week_start
+    ORDER BY weeks.week_start ASC
+  `;
+
+  return {
+    year: result,
+  };
+}
+
+export async function getGlobalWeeklyComparisonStats() {
+  const parisNow = new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" })
+  );
+  const currentYear = parisNow.getFullYear();
+  const previousYear = currentYear - 1;
+
+  const [currentYearData, previousYearData] = await Promise.all([
+    getGlobalWeeklyStatsForYear(currentYear.toString()),
+    getGlobalWeeklyStatsForYearComplete(previousYear.toString()),
+  ]);
+
+  const formatWeeklyComparisonData = (
+    data: { week: string; value: number }[],
+    year: number
+  ) => {
+    return data.map((item) => ({
+      week: item.week,
+      value: item.value,
+      year: year,
+    }));
+  };
+
+  const currentYearFormatted = formatWeeklyComparisonData(
+    currentYearData.year,
+    currentYear
+  );
+  const previousYearFormatted = formatWeeklyComparisonData(
+    previousYearData.year,
+    previousYear
+  );
+
+  const currentWeekStart = new Date(parisNow);
+  currentWeekStart.setDate(
+    currentWeekStart.getDate() - currentWeekStart.getDay() + 1
+  );
+  currentWeekStart.setHours(0, 0, 0, 0);
+
+  const filteredCurrentYear = currentYearFormatted.filter((item) => {
+    const weekDate = new Date(item.week);
+    return weekDate <= currentWeekStart;
+  });
+
+  const [currentYearDirectTotal, previousYearDirectTotal] = await Promise.all([
+    prisma.$queryRaw<{ total: bigint }[]>`
+      SELECT COALESCE(SUM(CASE 
+        WHEN "CounterTimeseries".date <= ${currentWeekStart}::timestamp 
+        THEN value 
+        ELSE 0 
+      END), 0)::bigint as total
+      FROM "CounterTimeseries"
+      WHERE EXTRACT(YEAR FROM "CounterTimeseries".date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = ${currentYear}
+    `,
+    prisma.$queryRaw<{ total: bigint }[]>`
+      SELECT COALESCE(SUM(value), 0)::bigint as total
+      FROM "CounterTimeseries"
+      WHERE EXTRACT(YEAR FROM "CounterTimeseries".date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = ${previousYear}
+    `,
+  ]);
+
+  return {
+    currentYear: filteredCurrentYear,
+    previousYear: previousYearFormatted,
+    currentYearTotal: Number(currentYearDirectTotal[0].total),
+    previousYearTotal: Number(previousYearDirectTotal[0].total),
   };
 }

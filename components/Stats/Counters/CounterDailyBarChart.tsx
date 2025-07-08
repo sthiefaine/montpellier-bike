@@ -186,10 +186,10 @@ export default function CounterDailyBarChart({
   );
 
   return (
-    <div className="mb-2 h-full flex flex-col">
-      <h4 className="text-sm font-semibold text-gray-900 pl-4">
+    <div className="bg-white">
+      <h3 className="text-lg font-semibold text-gray-900 pl-4">
         Passages par jour ({currentYear})
-      </h4>
+      </h3>
       <div className="flex-1 bg-white p-2 rounded-lg shadow-sm flex flex-col">
         <div className="flex flex-col sm:flex-row justify-start mb-2">
           <div className="flex items-center gap-4">

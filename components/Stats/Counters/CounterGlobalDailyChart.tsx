@@ -33,20 +33,32 @@ export default function CounterGlobalDailyChart({
 
   console.log("test counterGlobalDailyStats", counterGlobalDailyStats);
 
+  const getFrenchDayName = (day: string) => {
+    const dayMap: Record<string, string> = {
+      monday: "Lundi",
+      tuesday: "Mardi", 
+      wednesday: "Mercredi",
+      thursday: "Jeudi",
+      friday: "Vendredi",
+      saturday: "Samedi",
+      sunday: "Dimanche"
+    };
+    return dayMap[day.toLowerCase()] || day;
+  };
+
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
+      
       return (
         <div className="bg-white p-2 border border-gray-200 rounded shadow-sm">
           <p className="text-sm font-medium text-gray-900">
-            {label.charAt(0).toUpperCase() + label.slice(1)}
+            {getFrenchDayName(label)}
           </p>
           <p className="text-sm text-gray-600">
             {data.value.toLocaleString()} passages au total
           </p>
-          <p className="text-xs text-gray-500">
-            Sur {data.count} jours
-          </p>
+          <p className="text-xs text-gray-500">Sur {data.count} jours</p>
         </div>
       );
     }
@@ -54,14 +66,17 @@ export default function CounterGlobalDailyChart({
   };
 
   return (
-    <div className="mb-2 h-full flex flex-col">
+    <div className="mb-2 h-full flex flex-col w-full">
       <h4 className="text-sm font-semibold text-gray-900 pl-4 mb-2">
         Total des passages par jour ({currentYear})
       </h4>
       <div className="flex-1 bg-white p-2 rounded-lg shadow-sm">
-        <div className="w-full h-[calc(100%-40px)]">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={counterGlobalDailyStats.dailyTotals} margin={{ top: 5, right: 5, left: 5, bottom: 5 }}>
+        <div className="w-full h-[calc(100%-50px)]">
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart
+              data={counterGlobalDailyStats.dailyTotals}
+              margin={{ top: 5, right: 5, left: 5, bottom: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis
                 dataKey="day"
@@ -69,7 +84,7 @@ export default function CounterGlobalDailyChart({
                 fontSize={10}
                 tickLine={false}
                 axisLine={{ stroke: "#e2e8f0" }}
-                tickFormatter={(value) => value.charAt(0).toUpperCase() + value.slice(1)}
+                tickFormatter={(value) => getFrenchDayName(value)}
               />
               <YAxis
                 stroke="#64748b"
@@ -91,14 +106,15 @@ export default function CounterGlobalDailyChart({
                   fontWeight: "bold",
                 }}
               />
-              <Bar
-                dataKey="value"
-                radius={[4, 4, 0, 0]}
-              >
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {counterGlobalDailyStats.dailyTotals.map((entry) => (
                   <Cell
                     key={entry.day}
-                    fill={WEEK_DAYS_CONFIG[entry.day as keyof typeof WEEK_DAYS_CONFIG].color}
+                    fill={
+                      WEEK_DAYS_CONFIG[
+                        entry.day as keyof typeof WEEK_DAYS_CONFIG
+                      ].color
+                    }
                   />
                 ))}
               </Bar>

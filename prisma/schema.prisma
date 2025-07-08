@@ -98,3 +98,19 @@ model WeatherTimeseries {
 
   @@unique([zone, date, type])
 }
+
+model DailyWeather {
+  id              String   @id @default(uuid())
+  date            DateTime @unique
+  temperature     Float
+  weatherCode     Int
+  isRaining       Boolean
+  isCloudy        Boolean
+  humidity        Float?
+  windSpeed       Float?
+  precipitation   Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("daily_weather")
+}

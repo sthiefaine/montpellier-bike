@@ -1,6 +1,7 @@
 "use server";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { getStartOfYearParis, getEndOfYearParis } from "./dateHelpers";
 
 export async function getYearlyStats(counterId: string) {
   const firstPassage = await prisma.counterTimeseries.findFirst({
@@ -25,8 +26,9 @@ export async function getYearlyStats(counterId: string) {
     },
   });
 
-  const startYear = firstPassage.date.getFullYear();
-  const endYear = lastPassage?.date.getFullYear() || new Date().getFullYear();
+  // Utiliser le fuseau horaire de Paris pour déterminer les années
+  const startYear = new Date(firstPassage.date.toLocaleString("en-US", { timeZone: "Europe/Paris" })).getFullYear();
+  const endYear = lastPassage ? new Date(lastPassage.date.toLocaleString("en-US", { timeZone: "Europe/Paris" })).getFullYear() : new Date().getFullYear();
 
   const yearlyStats = await prisma.$queryRaw<{ year: string; total: bigint }[]>(
     Prisma.sql`
@@ -43,7 +45,7 @@ export async function getYearlyStats(counterId: string) {
         FROM years
         LEFT JOIN "CounterTimeseries" ON 
           "CounterTimeseries"."counterId" = ${counterId}
-          AND EXTRACT(YEAR FROM "CounterTimeseries".date) = years.year
+          AND EXTRACT(YEAR FROM "CounterTimeseries".date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = years.year
         GROUP BY years.year
       )
       SELECT year, total
@@ -146,8 +148,16 @@ export async function getGlobalYearlyStats() {
     },
   });
 
-  const startYear = firstPassage.date.getFullYear();
-  const endYear = lastPassage?.date.getFullYear() || new Date().getFullYear();
+  // Utiliser le fuseau horaire de Paris pour déterminer les années
+  const startYear = new Date(firstPassage.date.toLocaleString("en-US", { timeZone: "Europe/Paris" })).getFullYear();
+  const endYear = lastPassage ? new Date(lastPassage.date.toLocaleString("en-US", { timeZone: "Europe/Paris" })).getFullYear() : new Date().getFullYear();
+
+  // Pour l'année courante, filtrer jusqu'à la semaine actuelle
+  const parisNow = new Date(new Date().toLocaleString("en-US", { timeZone: "Europe/Paris" }));
+  const currentYear = parisNow.getFullYear();
+  const currentWeekStart = new Date(parisNow);
+  currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay() + 1); // Début de la semaine courante (lundi)
+  currentWeekStart.setHours(0, 0, 0, 0);
 
   const yearlyStats = await prisma.$queryRaw<{ year: string; total: bigint }[]>(
     Prisma.sql`
@@ -160,7 +170,16 @@ export async function getGlobalYearlyStats() {
       yearly_stats AS (
         SELECT 
           years.year::text as year,
-          COALESCE(SUM(value), 0)::bigint as total
+          CASE 
+            WHEN years.year = ${currentYear} THEN
+              COALESCE(SUM(CASE 
+                WHEN "CounterTimeseries".date <= ${currentWeekStart}::timestamp 
+                THEN value 
+                ELSE 0 
+              END), 0)::bigint
+            ELSE
+              COALESCE(SUM(value), 0)::bigint
+          END as total
         FROM years
         LEFT JOIN "CounterTimeseries" ON 
           EXTRACT(YEAR FROM "CounterTimeseries".date AT TIME ZONE 'UTC' AT TIME ZONE 'Europe/Paris') = years.year

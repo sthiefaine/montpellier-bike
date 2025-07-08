@@ -2,6 +2,7 @@
 
 import { getGlobalStats } from "@/actions/counters/stats";
 import { getDailyStats } from "@/actions/dailyStats";
+import { getTodayWeather } from "@/actions/weather";
 import NumberFlow from "@/components/NumberFlow";
 import StatsBar from "@/components/Stats/Counters/StatsBar";
 import WeatherMessage from "@/components/Weathers/WeatherMessage";
@@ -18,9 +19,10 @@ const getGlobalStatsData = async () => {
 };
 
 export default async function HeroSection() {
-  const [stats, dailyStats] = await Promise.all([
+  const [stats, dailyStats, todayWeather] = await Promise.all([
     getGlobalStatsData(),
     getDailyStatsData(),
+    getTodayWeather(),
   ]);
 
   const maxPassages = Math.max(
@@ -51,9 +53,9 @@ export default async function HeroSection() {
                   : "début des mesures"}
               </p>
               <WeatherMessage
-                temperature={dailyStats.weather.today.temperature}
-                isRaining={dailyStats.weather.today.isRaining}
-                isCloudy={dailyStats.weather.today.isCloudy}
+                temperature={todayWeather?.temperature ?? null}
+                isRaining={todayWeather?.isRaining ?? false}
+                isCloudy={todayWeather?.isCloudy ?? false}
               />
             </div>
             <div className="relative w-24 h-24">

@@ -1,19 +1,31 @@
 "use server";
 
+import { getTodayWeather } from "@/actions/weather";
+
 type WeatherMessageProps = {
-  temperature: number | null;
-  isRaining: boolean;
-  isCloudy: boolean;
+  temperature?: number | null;
+  isRaining?: boolean;
+  isCloudy?: boolean;
 };
 
 const randomPick = (options: string[]) =>
   options[Math.floor(Math.random() * options.length)];
 
 export default async function WeatherMessage({
-  temperature,
-  isRaining,
-  isCloudy,
+  temperature: propTemperature,
+  isRaining: propIsRaining,
+  isCloudy: propIsCloudy,
 }: WeatherMessageProps) {
+  // Récupérer la météo depuis la base de données si pas fournie en props
+  let weatherData = null;
+  if (!propTemperature && !propIsRaining && !propIsCloudy) {
+    weatherData = await getTodayWeather();
+  }
+  
+  const temperature = propTemperature ?? weatherData?.temperature ?? null;
+  const isRaining = propIsRaining ?? weatherData?.isRaining ?? false;
+  const isCloudy = propIsCloudy ?? weatherData?.isCloudy ?? false;
+  
   if (temperature === null) return null;
 
   const getMessage = () => {

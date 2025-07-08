@@ -68,7 +68,7 @@ export default function CounterWeeklyStats({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
+    <div className="bg-white">
       <h3 className="text-lg font-semibold text-gray-900 pl-4">
         Statistiques hebdomadaires
       </h3>

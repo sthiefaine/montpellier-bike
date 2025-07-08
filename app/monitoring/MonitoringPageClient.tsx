@@ -332,49 +332,6 @@ export default function MonitoringPageClient({
                     </div>
                   )}
 
-                  <ul className="space-y-3 text-sm text-gray-600">
-                    <li className="flex items-start gap-3">
-                      <span className="text-blue-500 font-medium">•</span>
-                      <div>
-                        <span className="font-medium">
-                          Détection depuis {inactivePeriod}{" "}
-                          {inactivePeriod === 1 ? "jour" : "jours"}
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Les compteurs sont considérés comme inactifs s'ils
-                          n'ont pas transmis de données depuis plus de{" "}
-                          {inactivePeriod}{" "}
-                          {inactivePeriod === 1 ? "jour" : "jours"}.
-                        </p>
-                      </div>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-green-500 font-medium">•</span>
-                      <div>
-                        <span className="font-medium">
-                          Compteurs actifs (vert)
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Compteurs ayant transmis des données dans les derniers{" "}
-                          {inactivePeriod}{" "}
-                          {inactivePeriod === 1 ? "jour" : "jours"}.
-                        </p>
-                      </div>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <span className="text-red-500 font-medium">•</span>
-                      <div>
-                        <span className="font-medium">
-                          Compteurs inactifs (rouge)
-                        </span>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Compteurs n'ayant pas transmis de données depuis plus
-                          de {inactivePeriod}{" "}
-                          {inactivePeriod === 1 ? "jour" : "jours"}.
-                        </p>
-                      </div>
-                    </li>
-                  </ul>
                   <div className="mt-6 bg-yellow-50 border border-yellow-100 rounded-lg p-4">
                     <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2 text-sm">
                       <span className="w-3 h-3 bg-yellow-500 rounded-full"></span>

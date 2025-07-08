@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { detectFirstDataDate, hasSerialNumberChanged, getCurrentSerialNumber } from "@/helpers";
+import {
+  detectFirstDataDate,
+  hasSerialNumberChanged,
+  getCurrentSerialNumber,
+} from "@/helpers";
 
 const COUNTERS_GEOJSON_URL =
   "https://data.montpellier3m.fr/sites/default/files/ressources/MMM_MMM_GeolocCompteurs.geojson";
@@ -30,17 +34,20 @@ export async function GET() {
 
     // Traitement de chaque compteur
     for (const counter of counters) {
-      const currentSerialNumber = getCurrentSerialNumber(counter.serialNumber, counter.serialNumber1);
-      
+      const currentSerialNumber = getCurrentSerialNumber(
+        counter.serialNumber,
+        counter.serialNumber1
+      );
+
       // Chercher un compteur existant par numéro de série actuel
       let existingCounter = await prisma.bikeCounter.findFirst({
         where: {
           OR: [
             { serialNumber: currentSerialNumber },
-            { serialNumber1: currentSerialNumber }
+            { serialNumber1: currentSerialNumber },
           ],
-          isActive: true
-        }
+          isActive: true,
+        },
       });
 
       if (!existingCounter) {
@@ -57,23 +64,30 @@ export async function GET() {
           },
         });
         createdCount++;
-        console.log(`Nouveau compteur créé: ${newCounter.name} (${currentSerialNumber})`);
+        console.log(
+          `Nouveau compteur créé: ${newCounter.name} (${currentSerialNumber})`
+        );
       } else {
         // Compteur existant - vérifier s'il y a eu un changement de numéro de série
-        const oldSerialNumber = getCurrentSerialNumber(existingCounter.serialNumber, existingCounter.serialNumber1);
-        
+        const oldSerialNumber = getCurrentSerialNumber(
+          existingCounter.serialNumber,
+          existingCounter.serialNumber1
+        );
+
         if (hasSerialNumberChanged(oldSerialNumber, currentSerialNumber)) {
-          console.log(`Changement de numéro de série détecté pour ${existingCounter.name}: ${oldSerialNumber} -> ${currentSerialNumber}`);
-          
+          console.log(
+            `Changement de numéro de série détecté pour ${existingCounter.name}: ${oldSerialNumber} -> ${currentSerialNumber}`
+          );
+
           // Désactiver l'ancien compteur
           await prisma.bikeCounter.update({
             where: { id: existingCounter.id },
-            data: { isActive: false }
+            data: { isActive: false },
           });
 
           // Détecter la date de changement
           const changeDate = await detectFirstDataDate(currentSerialNumber);
-          
+
           // Créer un nouvel enregistrement avec le nouveau numéro de série
           const newCounter = await prisma.bikeCounter.create({
             data: {
@@ -100,7 +114,9 @@ export async function GET() {
           });
 
           historyCount++;
-          console.log(`Historique enregistré pour ${newCounter.name}: ${oldSerialNumber} -> ${currentSerialNumber} (${changeDate})`);
+          console.log(
+            `Historique enregistré pour ${newCounter.name}: ${oldSerialNumber} -> ${currentSerialNumber} (${changeDate})`
+          );
         } else {
           await prisma.bikeCounter.update({
             where: { id: existingCounter.id },
@@ -126,8 +142,8 @@ export async function GET() {
         created: createdCount,
         updated: updatedCount,
         history: historyCount,
-        total: counters.length
-      }
+        total: counters.length,
+      },
     });
   } catch (error) {
     console.error("Erreur lors de la mise à jour des compteurs:", error);

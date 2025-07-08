@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentSerialNumber } from "@/helpers";
 
-const API_KEY = process.env.API_KEY_COUNTERS;
+const API_KEY = process.env.CRON_SECRET;
 
 function toISO(date: Date) {
   return date.toISOString();
