@@ -47,10 +47,10 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const counterParam = searchParams.get("counter");
     const fromParam = searchParams.get("from");
-
     const from = fromParam
       ? new Date(fromParam)
-      : getBeforeYesterdayBoundsParis().start;
+      : new Date(new Date().setMonth(new Date().getMonth() - 1));
+
 
     let counters;
     if (counterParam) {

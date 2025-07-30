@@ -10,6 +10,11 @@ export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
     log: [],
+    datasources: {
+      db: {
+        url: process.env.DATABASE_URL + "?connection_limit=20&pool_timeout=60",
+      },
+    },
   });
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;

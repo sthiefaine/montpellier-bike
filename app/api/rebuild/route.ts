@@ -1,19 +1,19 @@
 import { NextResponse } from "next/server";
 
-const VERCEL_DEPLOY_HOOK = process.env.VERCEL_DEPLOY_HOOK;
+const COOLIFY_RESOURCE_ID = process.env.COOLIFY_RESOURCE_ID;
 
 export async function GET() {
   try {
     console.log("[rebuild] Début de l'exécution");
 
-    if (!VERCEL_DEPLOY_HOOK) {
-      console.error("[rebuild] VERCEL_DEPLOY_HOOK n'est pas configuré");
-      throw new Error("VERCEL_DEPLOY_HOOK n'est pas configuré");
+    if (!COOLIFY_RESOURCE_ID) {
+      console.error("[rebuild] COOLIFY_RESOURCE_ID n'est pas configuré");
+      throw new Error("COOLIFY_RESOURCE_ID n'est pas configuré");
     }
 
     console.log(
-      "[rebuild] VERCEL_DEPLOY_HOOK configuré:",
-      VERCEL_DEPLOY_HOOK.substring(0, 50) + "..."
+      "[rebuild] COOLIFY_RESOURCE_ID configuré:",
+      COOLIFY_RESOURCE_ID.substring(0, 50) + "..."
     );
 
     const now = new Date();
@@ -40,12 +40,16 @@ export async function GET() {
 
     console.log("[rebuild] Déclenchement du rebuild...");
 
-    const response = await fetch(VERCEL_DEPLOY_HOOK, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-    });
+    const response = await fetch(
+      `${process.env.COOLIFY_URL}/api/v1/deploy?uuid=${COOLIFY_RESOURCE_ID}&force=false`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.COOLIFY_API_TOKEN}`,
+        },
+      }
+    );
 
     console.log(
       "[rebuild] Réponse du deploy hook:",
